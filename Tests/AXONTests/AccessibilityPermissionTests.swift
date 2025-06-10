@@ -35,7 +35,7 @@ import Foundation
             #expect(!apps.isEmpty)
             
             // Try to dump Finder (always available)
-            let finderDump = try AXDumper.dump(bundleIdentifier: "com.apple.finder", maxDepth: 1, maxChildren: 3)
+            let finderDump = try AXDumper.dump(bundleIdentifier: "com.apple.finder")
             #expect(!finderDump.isEmpty)
             #expect(finderDump.contains("Role: AXApplication"))
             

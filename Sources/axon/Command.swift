@@ -34,11 +34,6 @@ struct AppCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output file path")
     var output: String?
     
-    @Option(help: "Maximum tree depth")
-    var depth: Int = 10
-    
-    @Option(help: "Maximum children per node") 
-    var children: Int = 50
     
     @Flag(help: "Pretty-print JSON output")
     var pretty: Bool = false
@@ -48,6 +43,9 @@ struct AppCommand: ParsableCommand {
     
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
+    
+    @Option(help: "Filter by element type (button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive, all)")
+    var filter: String?
     
     func run() throws {
         // Check accessibility permissions
@@ -71,19 +69,30 @@ struct AppCommand: ParsableCommand {
         let axDump: String
         if let windowIndex = window {
             // Dump specific window
-            axDump = try AXDumper.dumpWindow(
-                bundleIdentifier: bundleId,
-                windowIndex: windowIndex,
-                maxDepth: depth,
-                maxChildren: children
-            )
+            if let filter = filter {
+                axDump = try AXDumper.dumpWindow(
+                    bundleIdentifier: bundleId,
+                    windowIndex: windowIndex,
+                    filter: filter
+                )
+            } else {
+                axDump = try AXDumper.dumpWindow(
+                    bundleIdentifier: bundleId,
+                    windowIndex: windowIndex
+                )
+            }
         } else {
             // Dump entire app
-            axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId,
-                maxDepth: depth,
-                maxChildren: children
-            )
+            if let filter = filter {
+                axDump = try AXDumper.dump(
+                    bundleIdentifier: bundleId,
+                    filter: filter
+                )
+            } else {
+                axDump = try AXDumper.dump(
+                    bundleIdentifier: bundleId
+                )
+            }
         }
         
         // Convert to JSON
@@ -129,11 +138,6 @@ struct BundleCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output file path")
     var output: String?
     
-    @Option(help: "Maximum tree depth")
-    var depth: Int = 3
-    
-    @Option(help: "Maximum children per node") 
-    var children: Int = 10
     
     @Flag(help: "Pretty-print JSON output")
     var pretty: Bool = false
@@ -143,6 +147,9 @@ struct BundleCommand: ParsableCommand {
     
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
+    
+    @Option(help: "Filter by element type (button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive, all)")
+    var filter: String?
     
     func run() throws {
         // Check accessibility permissions
@@ -167,19 +174,30 @@ struct BundleCommand: ParsableCommand {
         let axDump: String
         if let windowIndex = window {
             // Dump specific window
-            axDump = try AXDumper.dumpWindow(
-                bundleIdentifier: bundleId,
-                windowIndex: windowIndex,
-                maxDepth: depth,
-                maxChildren: children
-            )
+            if let filter = filter {
+                axDump = try AXDumper.dumpWindow(
+                    bundleIdentifier: bundleId,
+                    windowIndex: windowIndex,
+                    filter: filter
+                )
+            } else {
+                axDump = try AXDumper.dumpWindow(
+                    bundleIdentifier: bundleId,
+                    windowIndex: windowIndex
+                )
+            }
         } else {
             // Dump entire app
-            axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId,
-                maxDepth: depth,
-                maxChildren: children
-            )
+            if let filter = filter {
+                axDump = try AXDumper.dump(
+                    bundleIdentifier: bundleId,
+                    filter: filter
+                )
+            } else {
+                axDump = try AXDumper.dump(
+                    bundleIdentifier: bundleId
+                )
+            }
         }
         
         // Convert to JSON

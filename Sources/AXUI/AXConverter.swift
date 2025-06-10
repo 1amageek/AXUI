@@ -121,12 +121,12 @@ public struct UINodeState: Codable, Equatable {
         selected == false && enabled == true && focused == false
     }
     
-    /// Create state with only true values
+    /// Create state with only non-default values
     public static func create(selected: Bool = false, enabled: Bool = true, focused: Bool = false) -> UINodeState? {
-        // Only include true values in state to minimize tokens
+        // Only include non-default values to minimize tokens
         let state = UINodeState(
             selected: selected ? true : nil,
-            enabled: enabled ? true : nil,
+            enabled: !enabled ? false : nil,  // Only include when false (non-default)
             focused: focused ? true : nil
         )
         return state.selected == nil && state.enabled == nil && state.focused == nil ? nil : state
@@ -182,7 +182,12 @@ extension AXProperties {
     
     /// Convert AX properties to UI node
     public func toUINode() -> UINode {
-        let normalizedRole = role?.hasPrefix("AX") == true ? String(role!.dropFirst(2)) : role
+        var normalizedRole = role?.hasPrefix("AX") == true ? String(role!.dropFirst(2)) : role
+        
+        // Further normalize common roles
+        if normalizedRole == "StaticText" {
+            normalizedRole = "Text"
+        }
         
         
         // Create bounds from position and size

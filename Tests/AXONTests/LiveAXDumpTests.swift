@@ -28,7 +28,7 @@ import AppKit
     // Use Finder for performance testing (always available)
     do {
         let startTime = Date()
-        let axDump = try AXDumper.dump(bundleIdentifier: "com.apple.finder", maxDepth: 2, maxChildren: 8)
+        let axDump = try AXDumper.dump(bundleIdentifier: "com.apple.finder")
         let dumpTime = Date().timeIntervalSince(startTime)
         
         let parseStart = Date()

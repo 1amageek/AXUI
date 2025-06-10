@@ -117,7 +117,7 @@ Output JSON:
 
 ## License
 
-[Your License Here]
+@1amageek
 
 ## Contributing
 

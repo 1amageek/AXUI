@@ -47,7 +47,7 @@ public struct UINodeObject: Codable {
     
     enum CodingKeys: String, CodingKey {
         case role
-        case roleDescription
+        case roleDescription = "desc"
         case identifier
         case value
         case help
@@ -94,13 +94,37 @@ public struct UINodeObject: Codable {
         children: [UINode] = []
     ) {
         self.role = role
-        self.roleDescription = roleDescription
-        self.identifier = identifier
+        self.roleDescription = UINodeObject.shouldOmitRoleDescription(role: role, roleDescription: roleDescription) ? nil : roleDescription
+        self.identifier = identifier?.isEmpty == true ? nil : identifier
         self.value = value
         self.help = help
         self.bounds = bounds
         self.state = state
         self.children = children.isEmpty ? nil : children
+    }
+    
+    /// Check if roleDescription should be omitted
+    private static func shouldOmitRoleDescription(role: String?, roleDescription: String?) -> Bool {
+        guard let role = role, let roleDescription = roleDescription else { return false }
+        
+        // Generic role descriptions that match the role (in various languages)
+        let genericDescriptions: [String: Set<String>] = [
+            "Button": ["button", "ボタン", "按钮", "Button"],
+            "Text": ["text", "テキスト", "文本", "Text", "static text", "静的テキスト"],
+            "Field": ["text field", "テキストフィールド", "文本字段", "TextField"],
+            "Check": ["checkbox", "チェックボックス", "复选框", "CheckBox"],
+            "Radio": ["radio button", "ラジオボタン", "单选按钮", "RadioButton"],
+            "Scroll": ["scroll area", "スクロール領域", "滚动区域", "ScrollArea"],
+            "Group": ["group", "グループ", "组", "Group"],
+            "Window": ["window", "ウインドウ", "窗口", "Window"],
+            "PopUp": ["pop up button", "ポップアップボタン", "弹出按钮", "PopUpButton"]
+        ]
+        
+        if let generics = genericDescriptions[role] {
+            return generics.contains(roleDescription.lowercased())
+        }
+        
+        return false
     }
 }
 
@@ -185,8 +209,21 @@ extension AXProperties {
         var normalizedRole = role?.hasPrefix("AX") == true ? String(role!.dropFirst(2)) : role
         
         // Further normalize common roles
-        if normalizedRole == "StaticText" {
+        switch normalizedRole {
+        case "StaticText":
             normalizedRole = "Text"
+        case "ScrollArea":
+            normalizedRole = "Scroll"
+        case "TextField":
+            normalizedRole = "Field"
+        case "CheckBox":
+            normalizedRole = "Check"
+        case "RadioButton":
+            normalizedRole = "Radio"
+        case "PopUpButton":
+            normalizedRole = "PopUp"
+        default:
+            break
         }
         
         

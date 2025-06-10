@@ -33,7 +33,6 @@ public struct AXDumper {
         
         let pid = targetApp.processIdentifier
         let appElement = AXUIElementCreateApplication(pid)
-        
         return try dumpElement(appElement, depth: 0, filters: filters)
     }
     
@@ -104,6 +103,8 @@ public struct AXDumper {
         }
         
         let window = windows[windowIndex]
+        print(window.element)
+        print("!!!!!")
         return try dumpElement(window.element, depth: 0, filters: filters)
     }
     
@@ -161,11 +162,11 @@ public struct AXDumper {
                 
                 // Get position and size (important for interactive elements)
                 if let position = getPositionProperty(element) {
-                    result += "  Position: (\(Int(position.x)), \(Int(position.y)))\n"
+                    result += "  Position: (\(safeIntConversion(position.x)), \(safeIntConversion(position.y)))\n"
                 }
                 
                 if let size = getSizeProperty(element) {
-                    result += "  Size: (\(Int(size.width)), \(Int(size.height)))\n"
+                    result += "  Size: (\(safeIntConversion(size.width)), \(safeIntConversion(size.height)))\n"
                 }
                 
                 // Get state properties
@@ -201,7 +202,6 @@ public struct AXDumper {
     private static func dumpElementHierarchical(_ element: AXUIElement, depth: Int) throws -> String {
         var result = ""
         let indent = String(repeating: "  ", count: depth)
-        
         // Get basic properties
         if let role = getStringProperty(element, kAXRoleAttribute) {
             result += "\(indent)Role: \(role)\n"
@@ -225,11 +225,11 @@ public struct AXDumper {
         
         // Get position and size
         if let position = getPositionProperty(element) {
-            result += "\(indent)Position: (\(Int(position.x)), \(Int(position.y)))\n"
+            result += "\(indent)Position: (\(safeIntConversion(position.x)), \(safeIntConversion(position.y)))\n"
         }
         
         if let size = getSizeProperty(element) {
-            result += "\(indent)Size: (\(Int(size.width)), \(Int(size.height)))\n"
+            result += "\(indent)Size: (\(safeIntConversion(size.width)), \(safeIntConversion(size.height)))\n"
         }
         
         // Get state properties
@@ -285,11 +285,11 @@ public struct AXDumper {
             
             // Position and size for child elements
             if let position = getPositionProperty(child) {
-                result += "\(indent)  Position: (\(Int(position.x)), \(Int(position.y)))\n"
+                result += "\(indent)  Position: (\(safeIntConversion(position.x)), \(safeIntConversion(position.y)))\n"
             }
             
             if let size = getSizeProperty(child) {
-                result += "\(indent)  Size: (\(Int(size.width)), \(Int(size.height)))\n"
+                result += "\(indent)  Size: (\(safeIntConversion(size.width)), \(safeIntConversion(size.height)))\n"
             }
             
             // State properties
@@ -315,6 +315,13 @@ public struct AXDumper {
     }
     
     // MARK: - Property Getters
+    
+    private static func safeIntConversion(_ value: Double) -> Int {
+        if value.isNaN || value.isInfinite {
+            return 0
+        }
+        return Int(value)
+    }
     
     private static func getStringProperty(_ element: AXUIElement, _ attribute: String) -> String? {
         var value: CFTypeRef?

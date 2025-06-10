@@ -10,10 +10,46 @@ struct Command: ParsableCommand {
         commandName: "axon",
         abstract: "macOS Accessibility Tree to JSON Converter",
         discussion: """
-        AXON converts macOS accessibility tree data into lightweight JSON format.
-        Supports minified and pretty-printed output with optional compression statistics.
-        Filtering options allow extracting specific element types or interactive elements only.
-        
+        AXON converts macOS accessibility tree data into a lightweight JSON format that preserves
+        all semantic information while optimizing for size and readability. Perfect for LLM
+        prompts, automated testing, and GUI analysis.
+
+        Key Features:
+        • Converts AX tree dumps to compact JSON without information loss
+        • Removes "AX" prefixes while preserving semantic meaning (e.g., AXButton → Button)
+        • Supports element filtering by type or interaction capability
+        • Group element optimization for minimal representation
+        • Pretty-printing and compression statistics
+        • Per-window or full application dumping
+        • Compatible with JSON Schema validation (Draft 2020-12)
+
+        Filtering Options:
+        • button - Button elements
+        • textfield - Text fields and text areas
+        • checkbox - Checkbox elements
+        • radiobutton - Radio button elements
+        • slider - Slider elements
+        • popupbutton - Popup button elements
+        • tab - Tab elements
+        • menuitem - Menu item elements
+        • link - Link elements
+        • interactive - All interactive elements (buttons, fields, checkboxes, etc.)
+        • all - No filtering (default)
+
+        Common Use Cases:
+        • GUI automation and testing scripts
+        • Accessibility auditing and analysis
+        • AI/LLM prompts for understanding app interfaces
+        • Documentation of application UI structure
+        • Git-friendly diffs of interface changes
+
+        Example Usage:
+        • axon app finder --pretty --output finder.json
+        • axon bundle com.apple.weather --filter interactive
+        • axon app xcode --window 0 --stats
+        • axon list --verbose
+        • axon windows safari
+
         Requires accessibility permissions in System Preferences > Privacy & Security > Accessibility.
         """,
         version: "1.0.0",

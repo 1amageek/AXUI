@@ -12,6 +12,7 @@ struct Command: ParsableCommand {
         discussion: """
         AXON converts macOS accessibility tree data into lightweight JSON format.
         Supports minified and pretty-printed output with optional compression statistics.
+        Filtering options allow extracting specific element types or interactive elements only.
         
         Requires accessibility permissions in System Preferences > Privacy & Security > Accessibility.
         """,
@@ -44,7 +45,7 @@ struct AppCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
-    @Option(help: "Filter by element type (button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive, all)")
+    @Option(help: "Filter by element type. Multiple filters can be comma-separated. Available types: button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive (all interactive elements), all (no filtering). Example: --filter button,textfield")
     var filter: String?
     
     func run() throws {
@@ -148,7 +149,7 @@ struct BundleCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
-    @Option(help: "Filter by element type (button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive, all)")
+    @Option(help: "Filter by element type. Multiple filters can be comma-separated. Available types: button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive (all interactive elements), all (no filtering). Example: --filter button,textfield")
     var filter: String?
     
     func run() throws {

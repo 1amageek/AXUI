@@ -103,8 +103,6 @@ public struct AXDumper {
         }
         
         let window = windows[windowIndex]
-        print(window.element)
-        print("!!!!!")
         return try dumpElement(window.element, depth: 0, filters: filters)
     }
     

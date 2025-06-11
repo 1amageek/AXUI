@@ -415,6 +415,8 @@ public struct AXDumper {
             normalized = "Radio"
         case "PopUpButton":
             normalized = "PopUp"
+        case "GenericElement":
+            normalized = "Generic"
         default:
             break
         }

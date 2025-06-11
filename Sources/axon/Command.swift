@@ -67,6 +67,9 @@ struct AppCommand: ParsableCommand {
     @Flag(help: "Show size statistics")
     var stats: Bool = false
     
+    @Flag(help: "Output in AI-optimized format")
+    var ai: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
@@ -106,7 +109,9 @@ struct AppCommand: ParsableCommand {
         
         // Convert to JSON
         let jsonOutput: String
-        if pretty {
+        if ai {
+            jsonOutput = try convertToAIFormat(axDump: axDump, pretty: pretty)
+        } else if pretty {
             jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
         } else {
             jsonOutput = try AXDumper.convert(axDump: axDump)
@@ -154,6 +159,9 @@ struct BundleCommand: ParsableCommand {
     @Flag(help: "Show size statistics")
     var stats: Bool = false
     
+    @Flag(help: "Output in AI-optimized format")
+    var ai: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
@@ -194,7 +202,9 @@ struct BundleCommand: ParsableCommand {
         
         // Convert to JSON
         let jsonOutput: String
-        if pretty {
+        if ai {
+            jsonOutput = try convertToAIFormat(axDump: axDump, pretty: pretty)
+        } else if pretty {
             jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
         } else {
             jsonOutput = try AXDumper.convert(axDump: axDump)
@@ -263,6 +273,9 @@ struct QueryCommand: ParsableCommand {
     @Flag(help: "Show query statistics")
     var stats: Bool = false
     
+    @Flag(help: "Output in AI-optimized format")
+    var ai: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to query (default: all windows)")
     var window: Int?
     
@@ -312,6 +325,7 @@ struct QueryCommand: ParsableCommand {
                 query: query
             )
         } else {
+            
             elements = try AXDumper.dumpFlat(
                 bundleIdentifier: bundleId,
                 query: query
@@ -319,15 +333,20 @@ struct QueryCommand: ParsableCommand {
         }
         
         // Convert to JSON (flat array, no hierarchical structure)
-        let encoder = JSONEncoder()
-        if pretty {
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let jsonOutput: String
+        if ai {
+            jsonOutput = try convertFlatToAIFormat(elements: elements, pretty: pretty)
         } else {
-            encoder.outputFormatting = []
+            let encoder = JSONEncoder()
+            if pretty {
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            } else {
+                encoder.outputFormatting = []
+            }
+            
+            let jsonData = try encoder.encode(elements)
+            jsonOutput = String(data: jsonData, encoding: .utf8)!
         }
-        
-        let jsonData = try encoder.encode(elements)
-        let jsonOutput = String(data: jsonData, encoding: .utf8)!
         
         // Output
         if let outputFile = output {
@@ -512,4 +531,16 @@ func formatBytes(_ bytes: Int) -> String {
     }
     
     return String(format: "%.1f %@", size, units[unitIndex])
+}
+
+// MARK: - AI Format Conversion Functions
+
+/// Convert AX dump string to AI format (used by CLI commands)
+func convertToAIFormat(axDump: String, pretty: Bool = false) throws -> String {
+    return try AIFormatHelpers.convertToAIFormat(axDump: axDump, pretty: pretty)
+}
+
+/// Convert flat AXElement array to AI format (used by CLI query commands)
+func convertFlatToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
+    return try AIFormatHelpers.convertFlatToAIFormat(elements: elements, pretty: pretty)
 }

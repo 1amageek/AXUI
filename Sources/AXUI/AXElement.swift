@@ -13,7 +13,7 @@ public struct AXElement: Codable {
     public let size: Size?
     public let state: AXElementState?
     public let children: [AXElement]?
-    
+
     // Computed property for bounds
     public var bounds: [Int]? {
         guard let position = position, let size = size else { return nil }

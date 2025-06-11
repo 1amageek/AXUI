@@ -19,24 +19,6 @@ public struct AXDumper {
         return AXIsProcessTrustedWithOptions(options)
     }
     
-    /// Dump AX tree for a running application by bundle identifier
-    public static func dump(bundleIdentifier: String, includeZeroSize: Bool = false) throws -> String {
-        // Check accessibility permissions first
-        guard checkAccessibilityPermissions() else {
-            throw AXDumperError.accessibilityPermissionDenied
-        }
-        
-        let runningApps = NSWorkspace.shared.runningApplications
-                
-        guard let targetApp = runningApps.first(where: { $0.bundleIdentifier == bundleIdentifier }) else {
-            throw AXDumperError.applicationNotFound(bundleIdentifier)
-        }
-        
-        let pid = targetApp.processIdentifier
-        let appElement = AXUIElementCreateApplication(pid)
-        return try dumpElementHierarchical(appElement, depth: 0)
-    }
-    
     /// List all running applications with their bundle identifiers
     public static func listRunningApps() -> [(name: String, bundleId: String?)] {
         return NSWorkspace.shared.runningApplications
@@ -88,79 +70,6 @@ public struct AXDumper {
             )
         }
     }
-    
-    /// Dump AX tree for a specific window
-    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, includeZeroSize: Bool = false) throws -> String {
-        let windows = try listWindows(bundleIdentifier: bundleIdentifier)
-        
-        guard windowIndex >= 0 && windowIndex < windows.count else {
-            throw AXDumperError.windowNotFound(windowIndex, windows.count)
-        }
-        
-        let window = windows[windowIndex]
-        return try dumpElementHierarchical(window.element, depth: 0)
-    }
-    
-    // MARK: - Private Implementation
-    
-    
-    private static func dumpElementHierarchical(_ element: AXUIElement, depth: Int) throws -> String {
-        var result = ""
-        let indent = String(repeating: "  ", count: depth)
-        // Get basic properties
-        if let role = getStringProperty(element, kAXRoleAttribute) {
-            result += "\(indent)Role: \(role)\n"
-        }
-        
-        if let value = getStringProperty(element, kAXValueAttribute) {
-            result += "\(indent)Value: \(value)\n"
-        }
-        
-        if let identifier = getStringProperty(element, kAXIdentifierAttribute) {
-            result += "\(indent)Identifier: \(identifier)\n"
-        }
-        
-        if let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute) {
-            result += "\(indent)RoleDescription: \(roleDescription)\n"
-        }
-        
-        if let help = getStringProperty(element, kAXHelpAttribute) {
-            result += "\(indent)Help: \(help)\n"
-        }
-        
-        // Get position and size
-        if let position = getPositionProperty(element) {
-            result += "\(indent)Position: (\(safeIntConversion(position.x)), \(safeIntConversion(position.y)))\n"
-        }
-        
-        if let size = getSizeProperty(element) {
-            result += "\(indent)Size: (\(safeIntConversion(size.width)), \(safeIntConversion(size.height)))\n"
-        }
-        
-        // Get state properties
-        if let selected = getBoolProperty(element, kAXSelectedAttribute) {
-            result += "\(indent)Selected: \(selected)\n"
-        }
-        
-        if let enabled = getBoolProperty(element, kAXEnabledAttribute) {
-            result += "\(indent)Enabled: \(enabled)\n"
-        }
-        
-        if let focused = getBoolProperty(element, kAXFocusedAttribute) {
-            result += "\(indent)Focused: \(focused)\n"
-        }
-        
-        // Get children
-        if let children = getChildrenProperty(element) {
-            for (index, child) in children.enumerated() {
-                result += "\(indent)  Child[\(index)]:\n"
-                result += try dumpElementHierarchical(child, depth: depth + 1)
-            }
-        }
-        
-        return result
-    }
-    
     
     // MARK: - Property Getters
     
@@ -251,7 +160,7 @@ public struct AXDumper {
     // MARK: - Flat Dumping Methods
     
     /// Dump AX elements as a flat array with optional query filtering
-    public static func dumpFlat(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
+    public static func dump(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
         // Check accessibility permissions first
         guard checkAccessibilityPermissions() else {
             throw AXDumperError.accessibilityPermissionDenied
@@ -279,7 +188,7 @@ public struct AXDumper {
     }
     
     /// Dump AX elements for a specific window as a flat array
-    public static func dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
+    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
         let windows = try listWindows(bundleIdentifier: bundleIdentifier)
         
         guard windowIndex >= 0 && windowIndex < windows.count else {
@@ -303,12 +212,12 @@ public struct AXDumper {
     
     /// Query elements with a specific query
     public static func queryElements(bundleIdentifier: String, query: AXQuery) throws -> [AXElement] {
-        return try dumpFlat(bundleIdentifier: bundleIdentifier, query: query)
+        return try dump(bundleIdentifier: bundleIdentifier, query: query)
     }
     
     /// Query elements in a specific window
     public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery) throws -> [AXElement] {
-        return try dumpWindowFlat(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query)
+        return try dumpWindow(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query)
     }
     
     // MARK: - Private Flattening Implementation

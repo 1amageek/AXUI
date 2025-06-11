@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Developer Information
+
+- Developer's name is 1amageek
+
 ## Project Overview
 
 AXON is a Swift Package Manager library for querying and extracting macOS Accessibility API (AX) data using a flat array representation. The project provides a powerful query system for identifying UI elements without relying on unique IDs.
@@ -123,10 +127,10 @@ New methods for querying elements:
 AXDumper.queryElements(bundleIdentifier: String, query: AXQuery) throws -> [AXElement]
 
 // Dump flat array with optional filtering
-AXDumper.dumpFlat(bundleIdentifier: String, query: AXQuery? = nil) throws -> [AXElement]
+AXDumper.dump(bundleIdentifier: String, query: AXQuery? = nil) throws -> [AXElement]
 
 // Query specific window
-AXDumper.dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil) throws -> [AXElement]
+AXDumper.dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil) throws -> [AXElement]
 ```
 
 ### Query Examples
@@ -213,3 +217,4 @@ Query results are returned as a flat JSON array:
 ## Testing Framework
 
 This project uses the new Swift Testing framework (`import Testing`) rather than XCTest. Test functions are marked with `@Test` attribute instead of the traditional `testX()` naming convention.
+```

@@ -31,223 +31,35 @@ struct Command: ParsableCommand {
         • Git-friendly diffs of interface changes
 
         Example Usage:
-        • axon app finder --pretty --output finder.json
-        • axon bundle com.apple.weather --stats
-        • axon app xcode --window 0 --stats
-        • axon query safari "role=Button,description*=Save"
-        • axon query finder "role=Field,identifier*=search" --pretty
+        • axon dump finder --pretty --output finder.json
+        • axon dump com.apple.weather --stats
+        • axon dump safari "role=Button,description*=Save"
+        • axon dump finder "role=Field,identifier*=search" --pretty
+        • axon dump xcode --window 0 --stats
         • axon list --verbose
         • axon windows safari
 
         Requires accessibility permissions in System Preferences > Privacy & Security > Accessibility.
         """,
         version: "1.0.0",
-        subcommands: [AppCommand.self, BundleCommand.self, QueryCommand.self, ListCommand.self, WindowsCommand.self]
+        subcommands: [DumpCommand.self, ListCommand.self, WindowsCommand.self]
     )
 }
 
-// MARK: - App Command
 
-struct AppCommand: ParsableCommand {
+// MARK: - Dump Command
+
+struct DumpCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "app",
-        abstract: "Dump specified application"
-    )
-    
-    @Argument(help: "Application name (e.g., 'weather', 'calendar', 'finder')")
-    var appName: String
-    
-    @Option(name: .shortAndLong, help: "Output file path")
-    var output: String?
-    
-    
-    @Flag(help: "Pretty-print JSON output")
-    var pretty: Bool = false
-    
-    @Flag(help: "Show size statistics")
-    var stats: Bool = false
-    
-    @Flag(help: "Output in AI-optimized format")
-    var ai: Bool = false
-    
-    @Flag(help: "Include elements with zero width or height")
-    var includeZeroSize: Bool = false
-    
-    @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
-    var window: Int?
-    
-    
-    func run() throws {
-        // Check accessibility permissions
-        guard AXDumper.checkAccessibilityPermissions() else {
-            print("❌ Accessibility permissions required")
-            print("Please enable accessibility access in:")
-            print("System Preferences > Privacy & Security > Accessibility")
-            throw ExitCode.failure
-        }
-        
-        // Find app bundle identifier
-        guard let bundleId = findAppBundleId(appName) else {
-            print("❌ App '\(appName)' not found or not running")
-            print("Use 'axon list' to see running applications")
-            throw ExitCode.failure
-        }
-        
-        print("🔍 Dumping \(appName) (\(bundleId))...")
-        
-        // Dump AX tree
-        let axDump: String
-        if let windowIndex = window {
-            // Dump specific window
-            axDump = try AXDumper.dumpWindow(
-                bundleIdentifier: bundleId,
-                windowIndex: windowIndex,
-                includeZeroSize: includeZeroSize
-            )
-        } else {
-            // Dump entire app
-            axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId,
-                includeZeroSize: includeZeroSize
-            )
-        }
-        
-        // Convert to JSON
-        let jsonOutput: String
-        if ai {
-            jsonOutput = try convertToAIFormat(axDump: axDump, pretty: pretty)
-        } else if pretty {
-            jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
-        } else {
-            jsonOutput = try AXDumper.convert(axDump: axDump)
-        }
-        
-        // Output
-        if let outputFile = output {
-            try writeToFile(jsonOutput, path: outputFile)
-            print("✅ JSON saved to: \(outputFile)")
-        } else {
-            print(jsonOutput)
-        }
-        
-        // Statistics
-        if stats {
-            let compressedData = try AXDumper.convertToCompressed(axDump: axDump)
-            printStats(
-                originalSize: axDump.count,
-                jsonSize: jsonOutput.count,
-                compressedSize: compressedData.count
-            )
-        }
-    }
-}
-
-// MARK: - Bundle Command
-
-struct BundleCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "bundle",
-        abstract: "Dump application by bundle identifier",
-        aliases: ["i"]
-    )
-    
-    @Argument(help: "Bundle identifier (e.g., 'com.apple.weather', 'com.apple.iCal')")
-    var bundleId: String
-    
-    @Option(name: .shortAndLong, help: "Output file path")
-    var output: String?
-    
-    
-    @Flag(help: "Pretty-print JSON output")
-    var pretty: Bool = false
-    
-    @Flag(help: "Show size statistics")
-    var stats: Bool = false
-    
-    @Flag(help: "Output in AI-optimized format")
-    var ai: Bool = false
-    
-    @Flag(help: "Include elements with zero width or height")
-    var includeZeroSize: Bool = false
-    
-    @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
-    var window: Int?
-    
-    
-    func run() throws {
-        // Check accessibility permissions
-        guard AXDumper.checkAccessibilityPermissions() else {
-            print("❌ Accessibility permissions required")
-            print("Please enable accessibility access in:")
-            print("System Preferences > Privacy & Security > Accessibility")
-            throw ExitCode.failure
-        }
-        
-        // Check if app is running
-        let apps = AXDumper.listRunningApps()
-        guard apps.contains(where: { $0.bundleId == bundleId }) else {
-            print("❌ App with bundle ID '\(bundleId)' not found or not running")
-            print("Use 'axon list --verbose' to see running applications and their bundle IDs")
-            throw ExitCode.failure
-        }
-        
-        print("🔍 Dumping \(bundleId)...")
-        
-        // Dump AX tree
-        let axDump: String
-        if let windowIndex = window {
-            // Dump specific window
-            axDump = try AXDumper.dumpWindow(
-                bundleIdentifier: bundleId,
-                windowIndex: windowIndex,
-                includeZeroSize: includeZeroSize
-            )
-        } else {
-            // Dump entire app
-            axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId,
-                includeZeroSize: includeZeroSize
-            )
-        }
-        
-        // Convert to JSON
-        let jsonOutput: String
-        if ai {
-            jsonOutput = try convertToAIFormat(axDump: axDump, pretty: pretty)
-        } else if pretty {
-            jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
-        } else {
-            jsonOutput = try AXDumper.convert(axDump: axDump)
-        }
-        
-        // Output
-        if let outputFile = output {
-            try writeToFile(jsonOutput, path: outputFile)
-            print("✅ JSON saved to: \(outputFile)")
-        } else {
-            print(jsonOutput)
-        }
-        
-        // Statistics
-        if stats {
-            let compressedData = try AXDumper.convertToCompressed(axDump: axDump)
-            printStats(
-                originalSize: axDump.count,
-                jsonSize: jsonOutput.count,
-                compressedSize: compressedData.count
-            )
-        }
-    }
-}
-
-// MARK: - Query Command
-
-struct QueryCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "query",
-        abstract: "Query elements using flexible conditions",
+        commandName: "dump",
+        abstract: "Dump accessibility elements with optional filtering",
         discussion: """
-        Query elements using a flexible condition syntax. Returns a flat array of matching elements.
+        Dump accessibility elements from an application with optional query filtering. 
+        Returns a flat array of elements in JSON format.
+        
+        Usage:
+        • axon dump <app> - Dump all elements
+        • axon dump <app> <query> - Dump filtered elements
         
         Query Syntax:
         • Exact match: role=Button, description=Save, identifier=login-btn
@@ -260,12 +72,13 @@ struct QueryCommand: ParsableCommand {
         role=Button,description*=Save,enabled=true
         
         Examples:
-        • axon query safari "role=Button"
-        • axon query finder "role=Field,identifier*=search"
-        • axon query notes "description*=text,enabled=true"
-        • axon query app --window 0 "role=Button,minWidth=50"
+        • axon dump safari
+        • axon dump com.apple.weather --pretty
+        • axon dump safari "role=Button"
+        • axon dump finder "role=Field,identifier*=search"
+        • axon dump notes "description*=text,enabled=true" --window 0
         """,
-        aliases: ["q"]
+        aliases: ["d"]
     )
     
     @Argument(help: "Application name or bundle identifier")
@@ -293,26 +106,8 @@ struct QueryCommand: ParsableCommand {
     var window: Int?
     
     func run() throws {
-        // Check accessibility permissions
-        guard AXDumper.checkAccessibilityPermissions() else {
-            print("❌ Accessibility permissions required")
-            print("Please enable accessibility access in:")
-            print("System Preferences > Privacy & Security > Accessibility")
-            throw ExitCode.failure
-        }
-        
-        // Find app bundle identifier
-        let bundleId: String
-        if appIdentifier.contains(".") {
-            bundleId = appIdentifier
-        } else {
-            guard let foundBundleId = findAppBundleId(appIdentifier) else {
-                print("❌ App '\(appIdentifier)' not found or not running")
-                print("Use 'axon list' to see running applications")
-                throw ExitCode.failure
-            }
-            bundleId = foundBundleId
-        }
+        try checkPermissions()
+        let bundleId = try resolveAppIdentifier(appIdentifier)
         
         // Parse query (if provided)
         let query: AXQuery?
@@ -332,7 +127,7 @@ struct QueryCommand: ParsableCommand {
         // Execute query
         let elements: [AXElement]
         if let windowIndex = window {
-            elements = try AXDumper.dumpWindowFlat(
+            elements = try AXDumper.dumpWindow(
                 bundleIdentifier: bundleId,
                 windowIndex: windowIndex,
                 query: query,
@@ -340,7 +135,7 @@ struct QueryCommand: ParsableCommand {
             )
         } else {
             
-            elements = try AXDumper.dumpFlat(
+            elements = try AXDumper.dump(
                 bundleIdentifier: bundleId,
                 query: query,
                 includeZeroSize: includeZeroSize
@@ -350,7 +145,7 @@ struct QueryCommand: ParsableCommand {
         // Convert to JSON (flat array, no hierarchical structure)
         let jsonOutput: String
         if ai {
-            jsonOutput = try convertFlatToAIFormat(elements: elements, pretty: pretty)
+            jsonOutput = try convertToAIFormat(elements: elements, pretty: pretty)
         } else {
             let encoder = JSONEncoder()
             if pretty {
@@ -373,7 +168,7 @@ struct QueryCommand: ParsableCommand {
         
         // Statistics
         if stats {
-            print("\n📊 Query Results:")
+            print("\n📊 Dump Results:")
             print("   Elements found: \(elements.count)")
             print("   JSON size: \(formatBytes(jsonOutput.count))")
             
@@ -444,28 +239,8 @@ struct WindowsCommand: ParsableCommand {
     var appIdentifier: String
     
     func run() throws {
-        // Check accessibility permissions
-        guard AXDumper.checkAccessibilityPermissions() else {
-            print("❌ Accessibility permissions required")
-            print("Please enable accessibility access in:")
-            print("System Preferences > Privacy & Security > Accessibility")
-            throw ExitCode.failure
-        }
-        
-        // Find app bundle identifier
-        let bundleId: String
-        if appIdentifier.contains(".") {
-            // Assume it's a bundle ID
-            bundleId = appIdentifier
-        } else {
-            // Try to find by name
-            guard let foundBundleId = findAppBundleId(appIdentifier) else {
-                print("❌ App '\(appIdentifier)' not found or not running")
-                print("Use 'axon list' to see running applications")
-                throw ExitCode.failure
-            }
-            bundleId = foundBundleId
-        }
+        try checkPermissions()
+        let bundleId = try resolveAppIdentifier(appIdentifier)
         
         // List windows
         let windows = try AXDumper.listWindows(bundleIdentifier: bundleId)
@@ -494,13 +269,37 @@ struct WindowsCommand: ParsableCommand {
             }
             
             print("└───────┴────────────────────────────────────────┴──────────────────────┘")
-            print("\nUse 'axon app <name> --window <index>' to dump a specific window")
+            print("\nUse 'axon dump <name> --window <index>' to dump a specific window")
         }
     }
 }
 
 
 // MARK: - Helper Functions
+
+func checkPermissions() throws {
+    guard AXDumper.checkAccessibilityPermissions() else {
+        print("❌ Accessibility permissions required")
+        print("Please enable accessibility access in:")
+        print("System Preferences > Privacy & Security > Accessibility")
+        throw ExitCode.failure
+    }
+}
+
+func resolveAppIdentifier(_ appIdentifier: String) throws -> String {
+    if appIdentifier.contains(".") {
+        // Assume it's a bundle ID
+        return appIdentifier
+    } else {
+        // Try to find by name
+        guard let bundleId = findAppBundleId(appIdentifier) else {
+            print("❌ App '\(appIdentifier)' not found or not running")
+            print("Use 'axon list' to see running applications")
+            throw ExitCode.failure
+        }
+        return bundleId
+    }
+}
 
 func findAppBundleId(_ appName: String) -> String? {
     let apps = AXDumper.listRunningApps()
@@ -524,15 +323,10 @@ func writeToFile(_ content: String, path: String) throws {
     try content.write(to: url, atomically: true, encoding: .utf8)
 }
 
-func printStats(originalSize: Int, jsonSize: Int, compressedSize: Int) {
-    let jsonRatio = Double(jsonSize) / Double(originalSize)
-    let compressRatio = Double(compressedSize) / Double(originalSize)
-    
-    print("\n📊 Size Statistics:")
-    print("   Original AX Dump: \(formatBytes(originalSize))")
-    print("   JSON Output:      \(formatBytes(jsonSize)) (\(String(format: "%.1f", jsonRatio * 100))%)")
-    print("   Compressed:       \(formatBytes(compressedSize)) (\(String(format: "%.1f", compressRatio * 100))%)")
-    print("   Space Saved:      \(formatBytes(originalSize - jsonSize)) JSON, \(formatBytes(originalSize - compressedSize)) compressed")
+func printStats(elementCount: Int, jsonSize: Int) {
+    print("\n📊 Statistics:")
+    print("   Elements found: \(elementCount)")
+    print("   JSON size: \(formatBytes(jsonSize))")
 }
 
 func formatBytes(_ bytes: Int) -> String {
@@ -550,12 +344,7 @@ func formatBytes(_ bytes: Int) -> String {
 
 // MARK: - AI Format Conversion Functions
 
-/// Convert AX dump string to AI format (used by CLI commands)
-func convertToAIFormat(axDump: String, pretty: Bool = false) throws -> String {
-    return try AIFormatHelpers.convertToAIFormat(axDump: axDump, pretty: pretty)
-}
-
-/// Convert flat AXElement array to AI format (used by CLI query commands)
-func convertFlatToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
-    return try AIFormatHelpers.convertFlatToAIFormat(elements: elements, pretty: pretty)
+/// Convert AXElement array to AI format
+func convertToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
+    return try AIFormatHelpers.convertToAIFormat(elements: elements, pretty: pretty)
 }

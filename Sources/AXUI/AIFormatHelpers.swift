@@ -6,65 +6,14 @@ public struct AIFormatHelpers {
     
     // MARK: - CLI Helper Functions
     
-    /// Convert AX dump string to AI format (used by CLI commands)
-    public static func convertToAIFormat(axDump: String, pretty: Bool = false) throws -> String {
-        do {
-            return try converter.convertFromAXDump(axDump, pretty: pretty)
-        } catch let parseError as AXParseError {
-            throw AIConversionError.invalidAXDump("AX parse failed: \(parseError.localizedDescription)")
-        } catch {
-            throw AIConversionError.encodingFailed("Conversion failed: \(error.localizedDescription)")
-        }
-    }
-    
     /// Convert flat AXElement array to AI format (used by CLI query commands)
-    public static func convertFlatToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
+    public static func convertToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
         do {
             return try converter.convertFlat(from: elements, pretty: pretty)
         } catch {
             throw AIConversionError.encodingFailed("Flat conversion failed: \(error.localizedDescription)")
         }
-    }
-    
-    /// Convert hierarchical AXElement to AI format
-    public static func convertHierarchicalToAIFormat(element: AXElement, pretty: Bool = false) throws -> String {
-        do {
-            return try converter.convertHierarchical(from: element, pretty: pretty)
-        } catch {
-            throw AIConversionError.encodingFailed("Hierarchical conversion failed: \(error.localizedDescription)")
-        }
-    }
-    
-    /// Convert hierarchical AXElement array to AI format
-    public static func convertHierarchicalToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
-        do {
-            return try converter.convertHierarchical(from: elements, pretty: pretty)
-        } catch {
-            throw AIConversionError.encodingFailed("Hierarchical array conversion failed: \(error.localizedDescription)")
-        }
-    }
-    
-    // MARK: - Format Detection and Auto-Conversion
-    
-    /// Auto-detect input format and convert to AI format
-    public static func autoConvertToAIFormat(input: Any, pretty: Bool = false) throws -> String {
-        switch input {
-        case let axDump as String:
-            return try convertToAIFormat(axDump: axDump, pretty: pretty)
-        case let elements as [AXElement]:
-            // Determine if it's hierarchical or flat based on children presence
-            let hasChildren = elements.contains { $0.children != nil && !$0.children!.isEmpty }
-            if hasChildren {
-                return try convertHierarchicalToAIFormat(elements: elements, pretty: pretty)
-            } else {
-                return try convertFlatToAIFormat(elements: elements, pretty: pretty)
-            }
-        case let element as AXElement:
-            return try convertHierarchicalToAIFormat(element: element, pretty: pretty)
-        default:
-            throw AIConversionError.unsupportedFormat("Unsupported input type: \(type(of: input))")
-        }
-    }
+    }    
     
     // MARK: - Statistics and Analysis
     
@@ -107,38 +56,6 @@ public struct AIFormatHelpers {
                 throw AIConversionError.encodingFailed("Invalid AI format JSON: \(error.localizedDescription)")
             }
         }
-    }
-    
-    // MARK: - Batch Processing
-    
-    /// Convert multiple inputs in batch
-    public static func batchConvert(
-        inputs: [Any],
-        pretty: Bool = false,
-        continueOnError: Bool = true
-    ) -> BatchConversionResult {
-        var results: [String] = []
-        var errors: [Error] = []
-        
-        for (index, input) in inputs.enumerated() {
-            do {
-                let converted = try autoConvertToAIFormat(input: input, pretty: pretty)
-                results.append(converted)
-            } catch {
-                errors.append(BatchConversionError.itemFailed(index: index, error: error))
-                if !continueOnError {
-                    break
-                }
-                results.append("") // Placeholder for failed conversion
-            }
-        }
-        
-        return BatchConversionResult(
-            results: results,
-            errors: errors,
-            successCount: results.filter { !$0.isEmpty }.count,
-            totalCount: inputs.count
-        )
     }
 }
 

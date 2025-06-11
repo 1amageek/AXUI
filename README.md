@@ -1,16 +1,16 @@
 # AXON
 
-AXON is a Swift Package Manager library and CLI tool for querying and extracting macOS Accessibility API (AX) data using a flat array representation. The project provides a powerful query system for identifying UI elements without relying on unique IDs and automatically filters out zero-size elements for practical use.
+AXON is a Swift Package Manager library and CLI tool for extracting and querying macOS Accessibility API (AX) data using a flat array representation. The project provides a streamlined dumping system with powerful filtering capabilities for identifying UI elements without relying on unique IDs and automatically filters out zero-size elements for practical use.
 
 ## Features
 
-- 🔍 **Query-Based Element Identification**: Find UI elements using flexible conditions without unique IDs
+- 🔍 **Flexible Element Dumping**: Extract all elements or filter using flexible conditions without unique IDs
 - 📏 **Smart Size Filtering**: Automatically excludes zero-size elements (hidden menus, etc.) by default
 - 🗜️ **Flat Array Output**: Preserves relationships through indices while maintaining performance
-- 🎯 **Compound Matching**: Combine multiple conditions with logical operators
+- 🎯 **Compound Filtering**: Combine multiple conditions with logical operators
 - 🔗 **Relationship Queries**: Search based on parent/child relationships
 - 📊 **Position & Size Queries**: Filter elements by coordinates and dimensions with comparison operators
-- 🚀 **CLI Tool**: Command-line interface for easy integration and automation
+- 🚀 **Streamlined CLI**: Simple `dump` command with optional filtering
 - 📝 **JSON Output**: Clean, standardized format for consumption by AI/LLM systems
 
 ## Installation
@@ -36,7 +36,7 @@ swift build
 
 ## CLI Usage
 
-AXON provides a comprehensive command-line interface for accessibility tree analysis:
+AXON provides a streamlined command-line interface for accessibility tree analysis:
 
 ### Basic Commands
 
@@ -44,84 +44,88 @@ AXON provides a comprehensive command-line interface for accessibility tree anal
 # List running applications
 axon list --verbose
 
-# Dump application accessibility tree
-axon app weather --pretty
-axon bundle com.apple.weather --output weather.json
+# Dump all accessibility elements from an application
+axon dump weather --pretty
+axon dump com.apple.weather --output weather.json
 
 # List windows for an application
 axon windows safari
 
-# Query elements with conditions
-axon query com.apple.weather "role=Button"
+# Dump with query filtering
+axon dump safari "role=Button"
+axon dump finder "role=Field,identifier*=search"
 ```
 
 ### Query System
 
-The query system supports flexible element matching with multiple operators:
+The `dump` command supports flexible element filtering with multiple operators:
 
 #### Basic Property Matching
 ```bash
 # Exact matches
-axon query safari "role=Button"
-axon query finder "description=Search"
-axon query notes "identifier=compose-btn"
+axon dump safari "role=Button"
+axon dump finder "description=Search"
+axon dump notes "identifier=compose-btn"
 
 # Partial matches
-axon query safari "description*=bookmark"  # Contains
-axon query notes "identifier*=edit"        # Contains
+axon dump safari "description*=bookmark"  # Contains
+axon dump notes "identifier*=edit"        # Contains
 
 # Regex matching
-axon query safari "description~=.*[Ss]ave.*"
+axon dump safari "description~=.*[Ss]ave.*"
 ```
 
 #### Position & Size Queries
 ```bash
 # Size filtering (automatically excludes zero-size by default)
-axon query weather "width>100"           # Width greater than 100
-axon query weather "height!=0"           # Non-zero height
-axon query weather "width>=50,height>=20" # Minimum dimensions
+axon dump weather "width>100"           # Width greater than 100
+axon dump weather "height!=0"           # Non-zero height
+axon dump weather "width>=50,height>=20" # Minimum dimensions
 
 # Position filtering
-axon query weather "x=100,y=200"         # Exact position
-axon query weather "x>500"               # Right side of screen
-axon query weather "y<100"               # Top area
+axon dump weather "x=100,y=200"         # Exact position
+axon dump weather "x>500"               # Right side of screen
+axon dump weather "y<100"               # Top area
 
 # Include zero-size elements (hidden menus, etc.)
-axon query weather "role=MenuItem" --include-zero-size
+axon dump weather "role=MenuItem" --include-zero-size
 ```
 
 #### State Matching
 ```bash
-axon query safari "enabled=true,focused=false"
-axon query notes "selected=true"
+axon dump safari "enabled=true,focused=false"
+axon dump notes "selected=true"
 ```
 
 #### Complex Queries
 ```bash
 # Multiple conditions (AND logic)
-axon query safari "role=Button,enabled=true,width>50"
+axon dump safari "role=Button,enabled=true,width>50"
 
 # Interactive elements only
-axon query app "role=Button" --window 0
+axon dump safari "role=Button" --window 0
 
 # Elements in specific area
-axon query weather "x>100,y>200,width<500"
+axon dump weather "x>100,y>200,width<500"
 ```
 
 ### Output Options
 
 ```bash
 # Pretty-printed JSON
-axon query weather "role=Button" --pretty
+axon dump weather "role=Button" --pretty
 
 # Save to file
-axon query weather "role=Button" --output buttons.json
+axon dump weather "role=Button" --output buttons.json
 
 # AI-optimized format
-axon query weather "role=Button" --ai
+axon dump weather "role=Button" --ai
 
 # Show statistics
-axon query weather "role=Button" --stats
+axon dump weather "role=Button" --stats
+
+# Dump all elements (no query filter)
+axon dump weather --pretty --stats
 ```
 
 ## Library Usage
@@ -136,7 +140,7 @@ let query = AXQuery()
 query.role = "Button"
 query.enabled = true
 
-let elements = try AXDumper.dumpFlat(
+let elements = try AXDumper.dump(
     bundleIdentifier: "com.apple.weather", 
     query: query
 )
@@ -154,7 +158,7 @@ query.role = "Button"
 query.width = sizeQuery
 query.enabled = true
 
-let elements = try AXDumper.dumpFlat(
+let elements = try AXDumper.dump(
     bundleIdentifier: "com.apple.weather",
     query: query
 )
@@ -175,7 +179,7 @@ var query = AXQuery()
 query.x = xQuery
 query.y = yQuery
 
-let elements = try AXDumper.dumpFlat(
+let elements = try AXDumper.dump(
     bundleIdentifier: "com.apple.finder",
     query: query
 )
@@ -238,13 +242,13 @@ By default, AXON excludes elements with zero width or height (typically hidden m
 
 ```bash
 # Default: excludes zero-size elements
-axon query app "role=Button"
+axon dump safari "role=Button"
 
 # Include all elements (including hidden menus)
-axon query app "role=MenuItem" --include-zero-size
+axon dump safari "role=MenuItem" --include-zero-size
 
 # Explicitly query for zero-size elements
-axon query app "width=0" --include-zero-size
+axon dump safari "width=0" --include-zero-size
 ```
 
 ## JSON Output Format
@@ -272,11 +276,11 @@ Query results are returned as flat JSON arrays:
 
 ## Architecture
 
-- **AXDumper**: Core accessibility API interface with query support
+- **AXDumper**: Core accessibility API interface with filtering support
 - **AXQuery**: Flexible query structure with comparison operators
 - **AXQueryMatcher**: Element matching and filtering logic
 - **ComparisonQuery**: Generic comparison operations for numeric values
-- **Command**: CLI interface with comprehensive subcommands
+- **DumpCommand**: Streamlined CLI interface for element extraction and filtering
 
 ## Requirements
 

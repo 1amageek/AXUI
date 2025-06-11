@@ -8,11 +8,7 @@ public struct AIFormatHelpers {
     
     /// Convert flat AXElement array to AI format (used by CLI query commands)
     public static func convertToAIFormat(elements: [AXElement], pretty: Bool = false) throws -> String {
-        do {
-            return try converter.convertFlat(from: elements, pretty: pretty)
-        } catch {
-            throw AIConversionError.encodingFailed("Flat conversion failed: \(error.localizedDescription)")
-        }
+        return try converter.convert(from: elements, pretty: pretty)
     }    
     
     // MARK: - Statistics and Analysis
@@ -40,7 +36,7 @@ public struct AIFormatHelpers {
     /// Validate AI format output
     public static func validateAIFormat(_ jsonString: String) throws -> Bool {
         guard let data = jsonString.data(using: .utf8) else {
-            throw AIConversionError.encodingFailed("Invalid UTF-8 string")
+            throw ValidationError.invalidUTF8String
         }
         
         do {
@@ -53,13 +49,28 @@ public struct AIFormatHelpers {
                 _ = try JSONDecoder().decode([AIElement].self, from: data)
                 return true
             } catch {
-                throw AIConversionError.encodingFailed("Invalid AI format JSON: \(error.localizedDescription)")
+                throw ValidationError.invalidAIFormatJSON(error.localizedDescription)
             }
         }
     }
 }
 
 // MARK: - Supporting Types
+
+/// Validation errors for AI format helpers
+public enum ValidationError: Error, LocalizedError {
+    case invalidUTF8String
+    case invalidAIFormatJSON(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidUTF8String:
+            return "Invalid UTF-8 string"
+        case .invalidAIFormatJSON(let details):
+            return "Invalid AI format JSON: \(details)"
+        }
+    }
+}
 
 /// Conversion statistics
 public struct ConversionStats {

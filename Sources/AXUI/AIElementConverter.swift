@@ -8,51 +8,21 @@ public struct AIElementConverter: Sendable {
         self.encoder = AIElementEncoder()
     }
     
-    // MARK: - Hierarchical Structure Conversion
-    
-    /// Convert hierarchical AXElement structure to AI format
-    public func convertHierarchical(from axElement: AXElement, pretty: Bool = false) throws -> String {
-        let aiElement = encoder.convert(from: axElement)
-        return try encoder.encode(aiElement, pretty: pretty)
-    }
-    
-    /// Convert hierarchical AXElement array to AI format
-    public func convertHierarchical(from axElements: [AXElement], pretty: Bool = false) throws -> String {
-        let aiElements = encoder.convert(from: axElements)
-        return try encoder.encode(aiElements, pretty: pretty)
-    }
-    
     // MARK: - Flat Array Conversion
     
     /// Convert flat AXElement array to AI format (preserves flat structure)
-    public func convertFlat(from axElements: [AXElement], pretty: Bool = false) throws -> String {
+    public func convert(from axElements: [AXElement], pretty: Bool = false) throws -> String {
         // For flat arrays, we convert each element individually without nested children
         let aiElements = axElements.map { axElement in
-            convertToFlatAIElement(from: axElement)
+            convertToAIElement(from: axElement)
         }
         return try encoder.encode(aiElements, pretty: pretty)
-    }
-    
-    // MARK: - AX Dump String Conversion
-    
-    /// Convert AX dump string to AI format
-    public func convertFromAXDump(_ axDump: String, pretty: Bool = false) throws -> String {
-        // Parse AX dump to properties
-        let properties = try AXParser.parse(content: axDump)
-        
-        // Convert to UI node
-        let uiNode = properties.toUINode()
-        
-        // Convert UI node to AI element
-        let aiElement = convertUINodeToAIElement(uiNode)
-        
-        return try encoder.encode(aiElement, pretty: pretty)
     }
     
     // MARK: - Private Conversion Methods
     
     /// Convert AXElement to flat AI element (without nested children structure)
-    private func convertToFlatAIElement(from axElement: AXElement) -> AIElement {
+    private func convertToAIElement(from axElement: AXElement) -> AIElement {
         let normalizedRole = normalizeRole(axElement.role)
         let value = axElement.description
         let desc = filterRedundantDescription(role: normalizedRole, roleDescription: axElement.roleDescription)
@@ -67,57 +37,6 @@ public struct AIElementConverter: Sendable {
             bounds: bounds,
             state: state?.isDefault == false ? state : nil,
             children: nil
-        )
-    }
-    
-    /// Convert UINode to AIElement
-    private func convertUINodeToAIElement(_ uiNode: UINode) -> AIElement {
-        switch uiNode {
-        case .normal(let uiNodeObject):
-            return convertUINodeObjectToAIElement(uiNodeObject)
-        case .group(let nodes):
-            // Convert group nodes to AI children
-            let children = nodes.map { node in
-                AIElement.Node.normal(convertUINodeToAIElement(node))
-            }
-            
-            // Return group-optimized element
-            return AIElement(
-                role: nil, // Group role omitted
-                value: nil,
-                desc: nil,
-                bounds: nil,
-                state: nil,
-                children: children
-            )
-        }
-    }
-    
-    /// Convert UINodeObject to AIElement
-    private func convertUINodeObjectToAIElement(_ uiObject: UINodeObject) -> AIElement {
-        let state = convertUINodeStateToAI(uiObject.state)
-        let children = uiObject.children?.map { node in
-            AIElement.Node.normal(convertUINodeToAIElement(node))
-        }
-        
-        return AIElement(
-            role: uiObject.role,
-            value: uiObject.value,
-            desc: nil, // UINodeObject doesn't have desc field
-            bounds: uiObject.bounds,
-            state: state?.isDefault == false ? state : nil,
-            children: children
-        )
-    }
-    
-    /// Convert UINodeState to AIElementState
-    private func convertUINodeStateToAI(_ uiState: UINodeState?) -> AIElementState? {
-        guard let uiState = uiState else { return nil }
-        
-        return AIElementState(
-            selected: uiState.selected,
-            enabled: uiState.enabled,
-            focused: uiState.focused
         )
     }
     
@@ -401,47 +320,5 @@ public struct AIElementConverter: Sendable {
         
         // Return the description - functional descriptions are preserved
         return roleDescription
-    }
-}
-
-// MARK: - Batch Conversion Utilities
-
-extension AIElementConverter {
-    /// Convert multiple AXElement hierarchies to AI format
-    public func convertMultipleHierarchies(
-        from axElements: [AXElement], 
-        pretty: Bool = false
-    ) throws -> [String] {
-        return try axElements.map { axElement in
-            try convertHierarchical(from: axElement, pretty: pretty)
-        }
-    }
-    
-    /// Convert and merge multiple flat arrays
-    public func convertAndMergeFlat(
-        from arrays: [[AXElement]], 
-        pretty: Bool = false
-    ) throws -> String {
-        let mergedElements = arrays.flatMap { $0 }
-        return try convertFlat(from: mergedElements, pretty: pretty)
-    }
-}
-
-// MARK: - Error Handling
-
-public enum AIConversionError: Error, LocalizedError {
-    case invalidAXDump(String)
-    case encodingFailed(String)
-    case unsupportedFormat(String)
-    
-    public var errorDescription: String? {
-        switch self {
-        case .invalidAXDump(let details):
-            return "Invalid AX dump format: \(details)"
-        case .encodingFailed(let details):
-            return "Failed to encode AI format: \(details)"
-        case .unsupportedFormat(let details):
-            return "Unsupported input format: \(details)"
-        }
     }
 }

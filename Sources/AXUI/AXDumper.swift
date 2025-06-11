@@ -20,7 +20,7 @@ public struct AXDumper {
     }
     
     /// Dump AX tree for a running application by bundle identifier
-    public static func dump(bundleIdentifier: String) throws -> String {
+    public static func dump(bundleIdentifier: String, includeZeroSize: Bool = false) throws -> String {
         // Check accessibility permissions first
         guard checkAccessibilityPermissions() else {
             throw AXDumperError.accessibilityPermissionDenied
@@ -90,7 +90,7 @@ public struct AXDumper {
     }
     
     /// Dump AX tree for a specific window
-    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int) throws -> String {
+    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, includeZeroSize: Bool = false) throws -> String {
         let windows = try listWindows(bundleIdentifier: bundleIdentifier)
         
         guard windowIndex >= 0 && windowIndex < windows.count else {
@@ -251,7 +251,7 @@ public struct AXDumper {
     // MARK: - Flat Dumping Methods
     
     /// Dump AX elements as a flat array with optional query filtering
-    public static func dumpFlat(bundleIdentifier: String, query: AXQuery? = nil) throws -> [AXElement] {
+    public static func dumpFlat(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
         // Check accessibility permissions first
         guard checkAccessibilityPermissions() else {
             throw AXDumperError.accessibilityPermissionDenied
@@ -268,7 +268,7 @@ public struct AXDumper {
         var elements: [AXElement] = []
         
         // Build flat array of elements
-        flattenElement(appElement, elements: &elements)
+        flattenElement(appElement, elements: &elements, includeZeroSize: includeZeroSize)
         
         // Apply query filter if provided
         if let query = query {
@@ -279,7 +279,7 @@ public struct AXDumper {
     }
     
     /// Dump AX elements for a specific window as a flat array
-    public static func dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil) throws -> [AXElement] {
+    public static func dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
         let windows = try listWindows(bundleIdentifier: bundleIdentifier)
         
         guard windowIndex >= 0 && windowIndex < windows.count else {
@@ -291,7 +291,7 @@ public struct AXDumper {
         var elements: [AXElement] = []
         
         // Build flat array of elements starting from window
-        flattenElement(window.element, elements: &elements)
+        flattenElement(window.element, elements: &elements, includeZeroSize: includeZeroSize)
         
         // Apply query filter if provided
         if let query = query {
@@ -315,8 +315,25 @@ public struct AXDumper {
     
     private static func flattenElement(
         _ element: AXUIElement,
-        elements: inout [AXElement]
+        elements: inout [AXElement],
+        includeZeroSize: Bool = false
     ) {
+        
+        // Get size first to check if we should skip this element
+        let size = getSizeProperty(element)
+        
+        // Default behavior: exclude zero-size elements unless explicitly requested
+        if !includeZeroSize {
+            if let size = size, (size.width == 0 || size.height == 0) {
+                // Skip this element but still process its children
+                if let children = getChildrenProperty(element) {
+                    for child in children {
+                        flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
+                    }
+                }
+                return
+            }
+        }
         
         // Get element properties
         let role = getStringProperty(element, kAXRoleAttribute)
@@ -325,7 +342,7 @@ public struct AXDumper {
         let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute)
         let help = getStringProperty(element, kAXHelpAttribute)
         let position = getPositionProperty(element)
-        let size = getSizeProperty(element)
+        // Size already obtained above for zero-size check
         let selected = getBoolProperty(element, kAXSelectedAttribute) ?? false
         let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
         let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
@@ -362,7 +379,7 @@ public struct AXDumper {
         if normalizedRole == "Group" {
             // Process children but don't include the Group itself
             for child in children {
-                flattenElement(child, elements: &elements)
+                flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
             }
             return
         }
@@ -392,7 +409,7 @@ public struct AXDumper {
         
         // Process children for flattening (separate from structure children)
         for child in children {
-            flattenElement(child, elements: &elements)
+            flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
         }
     }
     

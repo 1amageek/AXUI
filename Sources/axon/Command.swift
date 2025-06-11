@@ -70,6 +70,9 @@ struct AppCommand: ParsableCommand {
     @Flag(help: "Output in AI-optimized format")
     var ai: Bool = false
     
+    @Flag(help: "Include elements with zero width or height")
+    var includeZeroSize: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
@@ -98,12 +101,14 @@ struct AppCommand: ParsableCommand {
             // Dump specific window
             axDump = try AXDumper.dumpWindow(
                 bundleIdentifier: bundleId,
-                windowIndex: windowIndex
+                windowIndex: windowIndex,
+                includeZeroSize: includeZeroSize
             )
         } else {
             // Dump entire app
             axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId
+                bundleIdentifier: bundleId,
+                includeZeroSize: includeZeroSize
             )
         }
         
@@ -162,6 +167,9 @@ struct BundleCommand: ParsableCommand {
     @Flag(help: "Output in AI-optimized format")
     var ai: Bool = false
     
+    @Flag(help: "Include elements with zero width or height")
+    var includeZeroSize: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
@@ -191,12 +199,14 @@ struct BundleCommand: ParsableCommand {
             // Dump specific window
             axDump = try AXDumper.dumpWindow(
                 bundleIdentifier: bundleId,
-                windowIndex: windowIndex
+                windowIndex: windowIndex,
+                includeZeroSize: includeZeroSize
             )
         } else {
             // Dump entire app
             axDump = try AXDumper.dump(
-                bundleIdentifier: bundleId
+                bundleIdentifier: bundleId,
+                includeZeroSize: includeZeroSize
             )
         }
         
@@ -276,6 +286,9 @@ struct QueryCommand: ParsableCommand {
     @Flag(help: "Output in AI-optimized format")
     var ai: Bool = false
     
+    @Flag(help: "Include elements with zero width or height")
+    var includeZeroSize: Bool = false
+    
     @Option(name: .shortAndLong, help: "Window index to query (default: all windows)")
     var window: Int?
     
@@ -322,13 +335,15 @@ struct QueryCommand: ParsableCommand {
             elements = try AXDumper.dumpWindowFlat(
                 bundleIdentifier: bundleId,
                 windowIndex: windowIndex,
-                query: query
+                query: query,
+                includeZeroSize: includeZeroSize
             )
         } else {
             
             elements = try AXDumper.dumpFlat(
                 bundleIdentifier: bundleId,
-                query: query
+                query: query,
+                includeZeroSize: includeZeroSize
             )
         }
         

@@ -23,6 +23,29 @@ public struct Size: Codable {
     }
 }
 
+// MARK: - Comparison Query
+
+public struct ComparisonQuery<T: Comparable & Codable>: Codable {
+    public var equals: T?
+    public var notEquals: T?
+    public var greaterThan: T?
+    public var lessThan: T?
+    public var greaterThanOrEqual: T?
+    public var lessThanOrEqual: T?
+    
+    public init() {}
+    
+    public func matches(_ value: T) -> Bool {
+        if let eq = equals, value != eq { return false }
+        if let neq = notEquals, value == neq { return false }
+        if let gt = greaterThan, value <= gt { return false }
+        if let lt = lessThan, value >= lt { return false }
+        if let gte = greaterThanOrEqual, value < gte { return false }
+        if let lte = lessThanOrEqual, value > lte { return false }
+        return true
+    }
+}
+
 // MARK: - AX Query System
 
 /// A flexible query structure for matching UI elements based on multiple conditions
@@ -42,10 +65,10 @@ public struct AXQuery {
     // Spatial properties
     public var boundsContains: Point?  // Element contains this point
     public var boundsIntersects: [Double]? // Element intersects this rect [x, y, width, height]
-    public var minWidth: Int?
-    public var minHeight: Int?
-    public var maxWidth: Int?
-    public var maxHeight: Int?
+    public var x: ComparisonQuery<Double>?
+    public var y: ComparisonQuery<Double>?
+    public var width: ComparisonQuery<Double>?
+    public var height: ComparisonQuery<Double>?
     
     // Text matching
     public var descriptionContains: String?     // Partial match
@@ -187,30 +210,107 @@ extension AXQuery {
                 default:
                     break
                 }
-            } else if pair.contains("=") {
-                // Exact match
-                let parts = pair.split(separator: "=", maxSplits: 1).map { String($0) }
-                guard parts.count == 2 else { continue }
-                let key = parts[0]
-                let value = parts[1]
+            } else {
+                // Handle comparison operators
+                let operators = [">=", "<=", "!=", ">", "<", "="]
+                var operatorFound: String?
+                var keyPart: String?
+                var valuePart: String?
+                
+                for op in operators {
+                    if pair.contains(op) {
+                        let parts = pair.split(separator: Character(extendedGraphemeClusterLiteral: op.first!), maxSplits: 1).map { String($0) }
+                        if parts.count == 2 {
+                            keyPart = parts[0]
+                            if op.count == 2 {
+                                // Handle two-character operators (>=, <=, !=)
+                                let remainingPart = parts[1]
+                                if remainingPart.hasPrefix(String(op.dropFirst())) {
+                                    valuePart = String(remainingPart.dropFirst())
+                                    operatorFound = op
+                                    break
+                                }
+                            } else {
+                                // Handle single-character operators (>, <, =)
+                                valuePart = parts[1]
+                                operatorFound = op
+                                break
+                            }
+                        }
+                    }
+                }
+                
+                guard let key = keyPart, let value = valuePart, let op = operatorFound else { continue }
                 
                 switch key {
                 case "role":
-                    query.role = String(value)
+                    if op == "=" { query.role = String(value) }
                 case "description":
-                    query.description = String(value)
+                    if op == "=" { query.description = String(value) }
                 case "identifier":
-                    query.identifier = String(value)
+                    if op == "=" { query.identifier = String(value) }
                 case "selected":
-                    query.selected = value == "true"
+                    if op == "=" { query.selected = value == "true" }
                 case "enabled":
-                    query.enabled = value == "true"
+                    if op == "=" { query.enabled = value == "true" }
                 case "focused":
-                    query.focused = value == "true"
-                case "minWidth":
-                    query.minWidth = Int(value)
-                case "minHeight":
-                    query.minHeight = Int(value)
+                    if op == "=" { query.focused = value == "true" }
+                case "x":
+                    if let doubleValue = Double(value) {
+                        var xQuery = query.x ?? ComparisonQuery<Double>()
+                        switch op {
+                        case "=": xQuery.equals = doubleValue
+                        case "!=": xQuery.notEquals = doubleValue
+                        case ">=": xQuery.greaterThanOrEqual = doubleValue
+                        case "<=": xQuery.lessThanOrEqual = doubleValue
+                        case ">": xQuery.greaterThan = doubleValue
+                        case "<": xQuery.lessThan = doubleValue
+                        default: break
+                        }
+                        query.x = xQuery
+                    }
+                case "y":
+                    if let doubleValue = Double(value) {
+                        var yQuery = query.y ?? ComparisonQuery<Double>()
+                        switch op {
+                        case "=": yQuery.equals = doubleValue
+                        case "!=": yQuery.notEquals = doubleValue
+                        case ">=": yQuery.greaterThanOrEqual = doubleValue
+                        case "<=": yQuery.lessThanOrEqual = doubleValue
+                        case ">": yQuery.greaterThan = doubleValue
+                        case "<": yQuery.lessThan = doubleValue
+                        default: break
+                        }
+                        query.y = yQuery
+                    }
+                case "width":
+                    if let doubleValue = Double(value) {
+                        var widthQuery = query.width ?? ComparisonQuery<Double>()
+                        switch op {
+                        case "=": widthQuery.equals = doubleValue
+                        case "!=": widthQuery.notEquals = doubleValue
+                        case ">=": widthQuery.greaterThanOrEqual = doubleValue
+                        case "<=": widthQuery.lessThanOrEqual = doubleValue
+                        case ">": widthQuery.greaterThan = doubleValue
+                        case "<": widthQuery.lessThan = doubleValue
+                        default: break
+                        }
+                        query.width = widthQuery
+                    }
+                case "height":
+                    if let doubleValue = Double(value) {
+                        var heightQuery = query.height ?? ComparisonQuery<Double>()
+                        switch op {
+                        case "=": heightQuery.equals = doubleValue
+                        case "!=": heightQuery.notEquals = doubleValue
+                        case ">=": heightQuery.greaterThanOrEqual = doubleValue
+                        case "<=": heightQuery.lessThanOrEqual = doubleValue
+                        case ">": heightQuery.greaterThan = doubleValue
+                        case "<": heightQuery.lessThan = doubleValue
+                        default: break
+                        }
+                        query.height = heightQuery
+                    }
                 default:
                     break
                 }

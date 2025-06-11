@@ -87,7 +87,29 @@ public struct AXQueryMatcher {
             }
         }
         
-        // Spatial matching
+        // Position matching
+        if let position = element.position {
+            if let xQuery = query.x, !xQuery.matches(position.x) { return false }
+            if let yQuery = query.y, !yQuery.matches(position.y) { return false }
+        } else {
+            // If element has no position but query requires position matching, fail
+            if query.x != nil || query.y != nil {
+                return false
+            }
+        }
+        
+        // Size matching
+        if let size = element.size {
+            if let widthQuery = query.width, !widthQuery.matches(size.width) { return false }
+            if let heightQuery = query.height, !heightQuery.matches(size.height) { return false }
+        } else {
+            // If element has no size but query requires size matching, fail
+            if query.width != nil || query.height != nil {
+                return false
+            }
+        }
+        
+        // Legacy spatial matching (for backward compatibility)
         if let bounds = element.bounds, bounds.count == 4 {
             if let boundsContains = query.boundsContains {
                 let contains = boundsContains.x >= Double(bounds[0]) && 
@@ -104,27 +126,9 @@ public struct AXQueryMatcher {
                                   Int(boundsIntersects[1]) >= bounds[1] + bounds[3])
                 if !intersects { return false }
             }
-            
-            if let minWidth = query.minWidth {
-                if bounds[2] < minWidth { return false }
-            }
-            
-            if let minHeight = query.minHeight {
-                if bounds[3] < minHeight { return false }
-            }
-            
-            if let maxWidth = query.maxWidth {
-                if bounds[2] > maxWidth { return false }
-            }
-            
-            if let maxHeight = query.maxHeight {
-                if bounds[3] > maxHeight { return false }
-            }
         } else {
             // If element has no bounds but query requires spatial matching, fail
-            if query.boundsContains != nil || query.boundsIntersects != nil ||
-               query.minWidth != nil || query.minHeight != nil ||
-               query.maxWidth != nil || query.maxHeight != nil {
+            if query.boundsContains != nil || query.boundsIntersects != nil {
                 return false
             }
         }

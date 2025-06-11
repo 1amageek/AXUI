@@ -107,9 +107,9 @@ struct AppCommand: ParsableCommand {
         // Convert to JSON
         let jsonOutput: String
         if pretty {
-            jsonOutput = try AXConverter.convertToPrettyJSON(axDump: axDump)
+            jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
         } else {
-            jsonOutput = try AXConverter.convert(axDump: axDump)
+            jsonOutput = try AXDumper.convert(axDump: axDump)
         }
         
         // Output
@@ -122,7 +122,7 @@ struct AppCommand: ParsableCommand {
         
         // Statistics
         if stats {
-            let compressedData = try AXConverter.convertToCompressed(axDump: axDump)
+            let compressedData = try AXDumper.convertToCompressed(axDump: axDump)
             printStats(
                 originalSize: axDump.count,
                 jsonSize: jsonOutput.count,
@@ -195,9 +195,9 @@ struct BundleCommand: ParsableCommand {
         // Convert to JSON
         let jsonOutput: String
         if pretty {
-            jsonOutput = try AXConverter.convertToPrettyJSON(axDump: axDump)
+            jsonOutput = try AXDumper.convertToPrettyJSON(axDump: axDump)
         } else {
-            jsonOutput = try AXConverter.convert(axDump: axDump)
+            jsonOutput = try AXDumper.convert(axDump: axDump)
         }
         
         // Output
@@ -210,7 +210,7 @@ struct BundleCommand: ParsableCommand {
         
         // Statistics
         if stats {
-            let compressedData = try AXConverter.convertToCompressed(axDump: axDump)
+            let compressedData = try AXDumper.convertToCompressed(axDump: axDump)
             printStats(
                 originalSize: axDump.count,
                 jsonSize: jsonOutput.count,

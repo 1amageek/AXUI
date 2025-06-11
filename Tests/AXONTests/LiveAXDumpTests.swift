@@ -36,11 +36,11 @@ import AppKit
         let parseTime = Date().timeIntervalSince(parseStart)
         
         let convertStart = Date()
-        let jsonString = try AXConverter.convert(axDump: axDump)
+        let jsonString = try AXDumper.convert(axDump: axDump)
         let convertTime = Date().timeIntervalSince(convertStart)
         
         let compressStart = Date()
-        let compressedData = try AXConverter.convertToCompressed(axDump: axDump)
+        let compressedData = try AXDumper.convertToCompressed(axDump: axDump)
         let compressTime = Date().timeIntervalSince(compressStart)
         
         // Performance expectations for real apps

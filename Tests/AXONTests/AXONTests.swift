@@ -68,8 +68,8 @@ import Foundation
     let axProps = AXProperties(
         role: "AXButton",
         value: "Click me",
-        position: CGPoint(x: 10, y: 20),
-        size: CGSize(width: 100, height: 50),
+        position: Point(x: 10, y: 20),
+        size: Size(width: 100, height: 50),
         selected: false,
         enabled: true,
         focused: false
@@ -215,16 +215,16 @@ import Foundation
     """
     
     // Test minified conversion
-    let minified = try AXConverter.convert(axDump: axDump)
+    let minified = try AXDumper.convert(axDump: axDump)
     #expect(!minified.contains("\n"))
     #expect(minified.contains("Button")) // Should contain role without AX prefix
     #expect(minified.contains("Test Button")) // Should contain value
     
     // Test pretty conversion
-    let pretty = try AXConverter.convertToPrettyJSON(axDump: axDump)
+    let pretty = try AXDumper.convertToPrettyJSON(axDump: axDump)
     #expect(pretty.contains("\n"))
     
     // Test compressed conversion
-    let compressed = try AXConverter.convertToCompressed(axDump: axDump)
+    let compressed = try AXDumper.convertToCompressed(axDump: axDump)
     #expect(compressed.count > 0)
 }

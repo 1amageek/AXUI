@@ -43,7 +43,7 @@ import Foundation
             print("   Size: \(finderDump.count) bytes")
             
             // Test JSON conversion
-            let jsonString = try AXConverter.convert(axDump: finderDump)
+            let jsonString = try AXDumper.convert(axDump: finderDump)
             #expect(!jsonString.isEmpty)
             
             print("   JSON Size: \(jsonString.count) bytes")

@@ -1,6 +1,7 @@
 import Foundation
 import ApplicationServices
 import AppKit
+import Compression
 
 // MARK: - AX Dumper
 
@@ -170,6 +171,13 @@ public struct AXDumper {
         return Int(value)
     }
     
+    private static func safeDoubleConversion(_ value: Double) -> Double {
+        if value.isNaN || value.isInfinite {
+            return 0.0
+        }
+        return value
+    }
+    
     private static func getStringProperty(_ element: AXUIElement, _ attribute: String) -> String? {
         var value: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
@@ -322,15 +330,21 @@ public struct AXDumper {
         let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
         let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
         
-        // Convert to bounds array
-        let bounds: [Int]? = {
-            guard let position = position, let size = size else { return nil }
-            return [
-                safeIntConversion(position.x),
-                safeIntConversion(position.y),
-                safeIntConversion(size.width),
-                safeIntConversion(size.height)
-            ]
+        // Convert position and size to safe values
+        let safePosition: Point? = {
+            guard let position = position else { return nil }
+            return Point(
+                x: safeDoubleConversion(position.x),
+                y: safeDoubleConversion(position.y)
+            )
+        }()
+        
+        let safeSize: Size? = {
+            guard let size = size else { return nil }
+            return Size(
+                width: safeDoubleConversion(size.width),
+                height: safeDoubleConversion(size.height)
+            )
         }()
         
         // Skip elements without meaningful content (no role, description, identifier, or roleDescription)
@@ -364,7 +378,8 @@ public struct AXDumper {
             identifier: identifier,
             roleDescription: roleDescription,
             help: help,
-            bounds: bounds,
+            position: safePosition,
+            size: safeSize,
             selected: selected,
             enabled: enabled,
             focused: focused,
@@ -469,14 +484,20 @@ public struct AXDumper {
         
         let normalizedRole = normalizeRole(role)
         
-        let bounds: [Int]? = {
-            guard let position = position, let size = size else { return nil }
-            return [
-                safeIntConversion(position.x),
-                safeIntConversion(position.y),
-                safeIntConversion(size.width),
-                safeIntConversion(size.height)
-            ]
+        let safePosition: Point? = {
+            guard let position = position else { return nil }
+            return Point(
+                x: safeDoubleConversion(position.x),
+                y: safeDoubleConversion(position.y)
+            )
+        }()
+        
+        let safeSize: Size? = {
+            guard let size = size else { return nil }
+            return Size(
+                width: safeDoubleConversion(size.width),
+                height: safeDoubleConversion(size.height)
+            )
         }()
         
         return AXElement(
@@ -485,13 +506,465 @@ public struct AXDumper {
             identifier: identifier,
             roleDescription: roleDescription,
             help: help,
-            bounds: bounds,
+            position: safePosition,
+            size: safeSize,
             selected: selected,
             enabled: enabled,
             focused: focused,
             children: nil, // Child elements don't include their own children
             axElementRef: element
         )
+    }
+}
+
+// MARK: - JSON Conversion Extensions
+
+extension AXDumper {
+    /// Convert AX dump to minified JSON
+    public static func convert(axDump: String) throws -> String {
+        let properties = try AXParser.parse(content: axDump)
+        let uiNode = properties.toUINode()
+        return try uiNode.toMinifiedJSON()
+    }
+    
+    /// Convert AX dump to pretty JSON
+    public static func convertToPrettyJSON(axDump: String) throws -> String {
+        let properties = try AXParser.parse(content: axDump)
+        let uiNode = properties.toUINode()
+        return try uiNode.toPrettyJSON()
+    }
+    
+    /// Convert AX dump to compressed JSON data
+    public static func convertToCompressed(axDump: String) throws -> Data {
+        let properties = try AXParser.parse(content: axDump)
+        let uiNode = properties.toUINode()
+        return try uiNode.toCompressedJSON()
+    }
+}
+
+// MARK: - AX Properties and UI Node Types
+
+/// Properties extracted from AX dump
+public struct AXProperties {
+    public let role: String?
+    public let value: String?
+    public let identifier: String?
+    public let roleDescription: String?
+    public let help: String?
+    public let position: Point?
+    public let size: Size?
+    public let selected: Bool
+    public let enabled: Bool
+    public let focused: Bool
+    public let children: [AXProperties]
+    
+    public init(
+        role: String? = nil,
+        value: String? = nil,
+        identifier: String? = nil,
+        roleDescription: String? = nil,
+        help: String? = nil,
+        position: Point? = nil,
+        size: Size? = nil,
+        selected: Bool = false,
+        enabled: Bool = true,
+        focused: Bool = false,
+        children: [AXProperties] = []
+    ) {
+        self.role = role
+        self.value = value
+        self.identifier = identifier
+        self.roleDescription = roleDescription
+        self.help = help
+        self.position = position
+        self.size = size
+        self.selected = selected
+        self.enabled = enabled
+        self.focused = focused
+        self.children = children
+    }
+}
+
+/// UI Node representation (from JSON specification)
+public enum UINode: Codable {
+    case normal(UINodeObject)
+    case group([UINode])
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let array = try? container.decode([UINode].self) {
+            self = .group(array)
+        } else {
+            let obj = try container.decode(UINodeObject.self)
+            self = .normal(obj)
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch self {
+        case .normal(let obj):
+            try container.encode(obj)
+        case .group(let children):
+            try container.encode(children)
+        }
+    }
+}
+
+/// UI Node Object
+public struct UINodeObject: Codable {
+    public let role: String?
+    public let value: String?
+    public let bounds: [Int]?
+    public let state: UINodeState?
+    public let children: [UINode]?
+    
+    private enum CodingKeys: String, CodingKey {
+        case role, value, bounds, state, children
+    }
+    
+    public init(
+        role: String? = nil,
+        value: String? = nil,
+        bounds: [Int]? = nil,
+        state: UINodeState? = nil,
+        children: [UINode]? = nil
+    ) {
+        self.role = role
+        self.value = value
+        self.bounds = bounds
+        self.state = state
+        self.children = children?.isEmpty == true ? nil : children
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(role, forKey: .role)
+        try container.encodeIfPresent(value, forKey: .value)
+        try container.encodeIfPresent(bounds, forKey: .bounds)
+        try container.encodeIfPresent(state, forKey: .state)
+        try container.encodeIfPresent(children, forKey: .children)
+    }
+}
+
+/// UI Node State
+public struct UINodeState: Codable, Equatable {
+    public let selected: Bool?
+    public let enabled: Bool?
+    public let focused: Bool?
+    
+    public init(selected: Bool?, enabled: Bool?, focused: Bool?) {
+        self.selected = selected
+        self.enabled = enabled
+        self.focused = focused
+    }
+    
+    /// Create state with only non-default values
+    public static func create(
+        selected: Bool = false,
+        enabled: Bool = true,
+        focused: Bool = false
+    ) -> UINodeState? {
+        let state = UINodeState(
+            selected: selected ? true : nil,
+            enabled: !enabled ? false : nil,
+            focused: focused ? true : nil
+        )
+        return state.selected == nil && state.enabled == nil && state.focused == nil ? nil : state
+    }
+    
+    /// Check if state has default values
+    public var isDefault: Bool {
+        return (selected == nil || selected == false) && 
+               (enabled == nil || enabled == true) && 
+               (focused == nil || focused == false)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(selected, forKey: .selected)
+        try container.encodeIfPresent(enabled, forKey: .enabled)
+        try container.encodeIfPresent(focused, forKey: .focused)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case selected, enabled, focused
+    }
+}
+
+// MARK: - AX Parser
+
+public struct AXParser {
+    /// Parse AX dump content into properties
+    public static func parse(content: String) throws -> AXProperties {
+        let lines = content.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        
+        guard !lines.isEmpty else {
+            throw AXParseError.emptyInput
+        }
+        
+        return try parse(lines: lines)
+    }
+    
+    /// Parse lines into properties
+    public static func parse(lines: [String]) throws -> AXProperties {
+        guard !lines.isEmpty else {
+            throw AXParseError.emptyInput
+        }
+        
+        var index = 0
+        return try parseNode(lines: lines, index: &index, depth: 0)
+    }
+    
+    private static func parseNode(lines: [String], index: inout Int, depth: Int) throws -> AXProperties {
+        var role: String?
+        var value: String?
+        var identifier: String?
+        var roleDescription: String?
+        var help: String?
+        var position: Point?
+        var size: Size?
+        var selected = false
+        var enabled = true
+        var focused = false
+        var children: [AXProperties] = []
+        
+        while index < lines.count {
+            let line = lines[index]
+            let currentDepth = getDepth(line)
+            
+            if currentDepth < depth {
+                break
+            }
+            
+            if currentDepth > depth {
+                index -= 1
+                break
+            }
+            
+            if line.contains("Child[") {
+                index += 1
+                let child = try parseNode(lines: lines, index: &index, depth: currentDepth + 1)
+                children.append(child)
+                continue
+            }
+            
+            let content = line.trimmingCharacters(in: .whitespaces)
+            
+            if let colonIndex = content.firstIndex(of: ":") {
+                let key = String(content[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                let valueStr = String(content[content.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
+                
+                switch key {
+                case "Role":
+                    role = valueStr
+                case "Value":
+                    value = valueStr
+                case "Identifier":
+                    identifier = valueStr
+                case "RoleDescription":
+                    roleDescription = valueStr
+                case "Help":
+                    help = valueStr
+                case "Position":
+                    position = parsePosition(valueStr)
+                case "Size":
+                    size = parseSize(valueStr)
+                case "Selected":
+                    selected = valueStr.lowercased() == "true"
+                case "Enabled":
+                    enabled = valueStr.lowercased() == "true"
+                case "Focused":
+                    focused = valueStr.lowercased() == "true"
+                default:
+                    break
+                }
+            }
+            
+            index += 1
+        }
+        
+        return AXProperties(
+            role: role,
+            value: value,
+            identifier: identifier,
+            roleDescription: roleDescription,
+            help: help,
+            position: position,
+            size: size,
+            selected: selected,
+            enabled: enabled,
+            focused: focused,
+            children: children
+        )
+    }
+    
+    private static func getDepth(_ line: String) -> Int {
+        return line.prefix { $0 == " " }.count / 2
+    }
+    
+    private static func parsePosition(_ valueStr: String) -> Point? {
+        let cleaned = valueStr.trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        let components = cleaned.components(separatedBy: ",")
+        guard components.count == 2,
+              let x = Double(components[0].trimmingCharacters(in: .whitespaces)),
+              let y = Double(components[1].trimmingCharacters(in: .whitespaces)) else {
+            return nil
+        }
+        return Point(x: x, y: y)
+    }
+    
+    private static func parseSize(_ valueStr: String) -> Size? {
+        let cleaned = valueStr.trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        let components = cleaned.components(separatedBy: ",")
+        guard components.count == 2,
+              let width = Double(components[0].trimmingCharacters(in: .whitespaces)),
+              let height = Double(components[1].trimmingCharacters(in: .whitespaces)) else {
+            return nil
+        }
+        return Size(width: width, height: height)
+    }
+}
+
+// MARK: - Parse Errors
+
+public enum AXParseError: Error, LocalizedError, Equatable {
+    case emptyInput
+    case invalidFormat(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .emptyInput:
+            return "Empty input provided to parser"
+        case .invalidFormat(let details):
+            return "Invalid format: \(details)"
+        }
+    }
+}
+
+// MARK: - Conversion Extensions
+
+extension AXProperties {
+    /// Convert to UI Node representation
+    public func toUINode() -> UINode {
+        let normalizedRole = normalizeRole(role)
+        
+        // Group optimization logic
+        if normalizedRole == "Group" {
+            let childNodes = children.map { $0.toUINode() }
+            
+            // G-Minimal: Array representation if only role and children
+            if hasOnlyRoleAndChildren() {
+                return .group(childNodes)
+            }
+            
+            // G-Object: Object representation with role omitted
+            let bounds = createBounds()
+            let state = UINodeState.create(selected: selected, enabled: enabled, focused: focused)
+            
+            return .normal(UINodeObject(
+                role: nil, // Group role omitted
+                value: value,
+                bounds: bounds,
+                state: state,
+                children: childNodes.isEmpty ? nil : childNodes
+            ))
+        }
+        
+        // Normal node
+        let bounds = createBounds()
+        let state = UINodeState.create(selected: selected, enabled: enabled, focused: focused)
+        let childNodes = children.map { $0.toUINode() }
+        
+        return .normal(UINodeObject(
+            role: normalizedRole,
+            value: value,
+            bounds: bounds,
+            state: state,
+            children: childNodes.isEmpty ? nil : childNodes
+        ))
+    }
+    
+    private func normalizeRole(_ role: String?) -> String? {
+        guard let role = role else { return nil }
+        return role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
+    }
+    
+    private func hasOnlyRoleAndChildren() -> Bool {
+        return value == nil &&
+               identifier == nil &&
+               roleDescription == nil &&
+               help == nil &&
+               position == nil &&
+               size == nil &&
+               selected == false &&
+               enabled == true &&
+               focused == false
+    }
+    
+    private func createBounds() -> [Int]? {
+        guard let position = position, let size = size else { return nil }
+        return [
+            Int(position.x),
+            Int(position.y),
+            Int(size.width),
+            Int(size.height)
+        ]
+    }
+}
+
+// MARK: - JSON Extensions
+
+extension UINode {
+    /// Convert to minified JSON
+    public func toMinifiedJSON() throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = []
+        let data = try encoder.encode(self)
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+    
+    /// Convert to pretty JSON
+    public func toPrettyJSON() throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(self)
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+    
+    /// Convert to compressed JSON data
+    public func toCompressedJSON() throws -> Data {
+        let jsonData = try JSONEncoder().encode(self)
+        return try jsonData.compressed(using: .lzfse)
+    }
+    
+    /// Create from JSON string
+    public static func fromJSON(_ jsonString: String) throws -> UINode {
+        guard let data = jsonString.data(using: .utf8) else {
+            throw AXParseError.invalidFormat("Invalid UTF-8 string")
+        }
+        return try JSONDecoder().decode(UINode.self, from: data)
+    }
+    
+    /// Create from compressed JSON data
+    public static func fromCompressedJSON(_ data: Data) throws -> UINode {
+        let decompressed = try data.decompressed(using: .lzfse)
+        return try JSONDecoder().decode(UINode.self, from: decompressed)
+    }
+}
+
+// MARK: - Data Compression Extensions
+
+extension Data {
+    func compressed(using algorithm: NSData.CompressionAlgorithm) throws -> Data {
+        return try (self as NSData).compressed(using: algorithm) as Data
+    }
+    
+    func decompressed(using algorithm: NSData.CompressionAlgorithm) throws -> Data {
+        return try (self as NSData).decompressed(using: algorithm) as Data
     }
 }
 

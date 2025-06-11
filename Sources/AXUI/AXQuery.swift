@@ -1,6 +1,27 @@
 import Foundation
-import CoreGraphics
 import ApplicationServices
+
+// MARK: - Basic Types
+
+public struct Point: Codable {
+    public let x: Double
+    public let y: Double
+    
+    public init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+}
+
+public struct Size: Codable {
+    public let width: Double
+    public let height: Double
+    
+    public init(width: Double, height: Double) {
+        self.width = width
+        self.height = height
+    }
+}
 
 // MARK: - AX Query System
 
@@ -19,8 +40,8 @@ public struct AXQuery {
     public var focused: Bool?
     
     // Spatial properties
-    public var boundsContains: CGPoint?  // Element contains this point
-    public var boundsIntersects: CGRect? // Element intersects this rect
+    public var boundsContains: Point?  // Element contains this point
+    public var boundsIntersects: [Double]? // Element intersects this rect [x, y, width, height]
     public var minWidth: Int?
     public var minHeight: Int?
     public var maxWidth: Int?
@@ -52,104 +73,6 @@ public final class Box<T> {
     
     public init(_ value: T) {
         self.value = value
-    }
-}
-
-// MARK: - Flat Element Representation
-
-/// A flat representation of a UI element with essential children
-public struct AXElement: Codable {
-    // Core properties
-    public let role: String?
-    public let description: String?
-    public let identifier: String?
-    public let roleDescription: String?
-    public let help: String?
-    public let bounds: [Int]?
-    public let state: AXElementState?
-    public let children: [AXElement]?
-    
-    // Internal reference (not serialized)
-    internal let axElementRef: AXUIElement?
-    
-    private enum CodingKeys: String, CodingKey {
-        case role, description, identifier, roleDescription, help, bounds, state, children
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(role, forKey: .role)
-        try container.encodeIfPresent(description, forKey: .description)
-        try container.encodeIfPresent(identifier, forKey: .identifier)
-        try container.encodeIfPresent(roleDescription, forKey: .roleDescription)
-        try container.encodeIfPresent(help, forKey: .help)
-        try container.encodeIfPresent(bounds, forKey: .bounds)
-        try container.encodeIfPresent(state, forKey: .state)
-        try container.encodeIfPresent(children, forKey: .children)
-        // Internal properties are not encoded
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        role = try container.decodeIfPresent(String.self, forKey: .role)
-        description = try container.decodeIfPresent(String.self, forKey: .description)
-        identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
-        roleDescription = try container.decodeIfPresent(String.self, forKey: .roleDescription)
-        help = try container.decodeIfPresent(String.self, forKey: .help)
-        bounds = try container.decodeIfPresent([Int].self, forKey: .bounds)
-        state = try container.decodeIfPresent(AXElementState.self, forKey: .state)
-        children = try container.decodeIfPresent([AXElement].self, forKey: .children)
-        axElementRef = nil
-    }
-    
-    public init(
-        role: String?,
-        description: String?,
-        identifier: String?,
-        roleDescription: String?,
-        help: String?,
-        bounds: [Int]?,
-        selected: Bool,
-        enabled: Bool,
-        focused: Bool,
-        children: [AXElement]? = nil,
-        axElementRef: AXUIElement? = nil
-    ) {
-        self.role = role
-        self.description = description
-        self.identifier = identifier
-        self.roleDescription = roleDescription
-        self.help = help
-        self.bounds = bounds
-        self.children = children
-        
-        // Only include non-default state values
-        let state = AXElementState.create(
-            selected: selected,
-            enabled: enabled,
-            focused: focused
-        )
-        self.state = state
-        
-        self.axElementRef = axElementRef
-    }
-}
-
-/// Element state for flat representation
-public struct AXElementState: Codable {
-    public let selected: Bool?
-    public let enabled: Bool?
-    public let focused: Bool?
-    
-    /// Create state with only non-default values
-    public static func create(selected: Bool, enabled: Bool, focused: Bool) -> AXElementState? {
-        // Only include non-default values
-        let state = AXElementState(
-            selected: selected ? true : nil,
-            enabled: !enabled ? false : nil,  // Only include when false (non-default)
-            focused: focused ? true : nil
-        )
-        return state.selected == nil && state.enabled == nil && state.focused == nil ? nil : state
     }
 }
 
@@ -209,7 +132,7 @@ extension AXQuery {
     }
     
     /// Create a spatial query
-    public static func within(rect: CGRect) -> AXQuery {
+    public static func within(rect: [Double]) -> AXQuery {
         var query = AXQuery()
         query.boundsIntersects = rect
         return query

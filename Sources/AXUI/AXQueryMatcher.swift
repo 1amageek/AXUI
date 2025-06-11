@@ -1,5 +1,4 @@
 import Foundation
-import CoreGraphics
 
 // MARK: - Query Matching Logic
 
@@ -90,14 +89,20 @@ public struct AXQueryMatcher {
         
         // Spatial matching
         if let bounds = element.bounds, bounds.count == 4 {
-            let elementRect = CGRect(x: bounds[0], y: bounds[1], width: bounds[2], height: bounds[3])
-            
             if let boundsContains = query.boundsContains {
-                if !elementRect.contains(boundsContains) { return false }
+                let contains = boundsContains.x >= Double(bounds[0]) && 
+                              boundsContains.y >= Double(bounds[1]) &&
+                              boundsContains.x <= Double(bounds[0] + bounds[2]) &&
+                              boundsContains.y <= Double(bounds[1] + bounds[3])
+                if !contains { return false }
             }
             
-            if let boundsIntersects = query.boundsIntersects {
-                if !elementRect.intersects(boundsIntersects) { return false }
+            if let boundsIntersects = query.boundsIntersects, boundsIntersects.count == 4 {
+                let intersects = !(bounds[0] >= Int(boundsIntersects[0] + boundsIntersects[2]) ||
+                                  Int(boundsIntersects[0]) >= bounds[0] + bounds[2] ||
+                                  bounds[1] >= Int(boundsIntersects[1] + boundsIntersects[3]) ||
+                                  Int(boundsIntersects[1]) >= bounds[1] + bounds[3])
+                if !intersects { return false }
             }
             
             if let minWidth = query.minWidth {

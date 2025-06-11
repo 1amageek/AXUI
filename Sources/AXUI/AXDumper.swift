@@ -449,6 +449,304 @@ public struct AXDumper {
         ]
         return interactiveRoles.contains(role)
     }
+    
+    // MARK: - Flat Dumping Methods
+    
+    /// Dump AX elements as a flat array with optional query filtering
+    public static func dumpFlat(bundleIdentifier: String, query: AXQuery? = nil) throws -> [AXElement] {
+        // Check accessibility permissions first
+        guard checkAccessibilityPermissions() else {
+            throw AXDumperError.accessibilityPermissionDenied
+        }
+        
+        let runningApps = NSWorkspace.shared.runningApplications
+        guard let targetApp = runningApps.first(where: { $0.bundleIdentifier == bundleIdentifier }) else {
+            throw AXDumperError.applicationNotFound(bundleIdentifier)
+        }
+        
+        let pid = targetApp.processIdentifier
+        let appElement = AXUIElementCreateApplication(pid)
+        
+        var elements: [AXElement] = []
+        var elementIndex = 0
+        
+        // Build flat array of elements
+        flattenElement(appElement, depth: 0, parentIndex: nil, elements: &elements, currentIndex: &elementIndex)
+        
+        // Apply query filter if provided
+        if let query = query {
+            return AXQueryMatcher.filter(elements: elements, query: query)
+        }
+        
+        return elements
+    }
+    
+    /// Dump AX elements for a specific window as a flat array
+    public static func dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil) throws -> [AXElement] {
+        let windows = try listWindows(bundleIdentifier: bundleIdentifier)
+        
+        guard windowIndex >= 0 && windowIndex < windows.count else {
+            throw AXDumperError.windowNotFound(windowIndex, windows.count)
+        }
+        
+        let window = windows[windowIndex]
+        
+        var elements: [AXElement] = []
+        var elementIndex = 0
+        
+        // Build flat array of elements starting from window
+        flattenElement(window.element, depth: 0, parentIndex: nil, elements: &elements, currentIndex: &elementIndex)
+        
+        // Apply query filter if provided
+        if let query = query {
+            return AXQueryMatcher.filter(elements: elements, query: query)
+        }
+        
+        return elements
+    }
+    
+    /// Query elements with a specific query
+    public static func queryElements(bundleIdentifier: String, query: AXQuery) throws -> [AXElement] {
+        return try dumpFlat(bundleIdentifier: bundleIdentifier, query: query)
+    }
+    
+    /// Query elements in a specific window
+    public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery) throws -> [AXElement] {
+        return try dumpWindowFlat(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query)
+    }
+    
+    // MARK: - Private Flattening Implementation
+    
+    private static func flattenElement(
+        _ element: AXUIElement,
+        depth: Int,
+        parentIndex: Int?,
+        elements: inout [AXElement],
+        currentIndex: inout Int
+    ) {
+        let myIndex = currentIndex
+        currentIndex += 1
+        
+        // Get element properties
+        let role = getStringProperty(element, kAXRoleAttribute)
+        let description = getStringProperty(element, kAXDescriptionAttribute)
+        let identifier = getStringProperty(element, kAXIdentifierAttribute)
+        let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute)
+        let help = getStringProperty(element, kAXHelpAttribute)
+        let position = getPositionProperty(element)
+        let size = getSizeProperty(element)
+        let selected = getBoolProperty(element, kAXSelectedAttribute) ?? false
+        let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
+        let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
+        
+        // Convert to bounds array
+        let bounds: [Int]? = {
+            guard let position = position, let size = size else { return nil }
+            return [
+                safeIntConversion(position.x),
+                safeIntConversion(position.y),
+                safeIntConversion(size.width),
+                safeIntConversion(size.height)
+            ]
+        }()
+        
+        // Skip elements without meaningful content (no role, description, identifier, or roleDescription)
+        if role == nil && description == nil && identifier == nil && roleDescription == nil {
+            return
+        }
+        
+        // Get children for processing
+        let children = getChildrenProperty(element) ?? []
+        
+        // Normalize role (remove AX prefix)
+        let normalizedRole = normalizeRole(role)
+        
+        // Skip Group elements as they have no meaning in this program
+        if normalizedRole == "Group" {
+            // Process children but don't include the Group itself
+            for child in children {
+                flattenElement(child, depth: depth, parentIndex: parentIndex, elements: &elements, currentIndex: &currentIndex)
+            }
+            return
+        }
+        var childIndices: [Int] = []
+        
+        // Determine if this element should include children structure
+        let shouldIncludeChildren = isInteractiveElement(role: normalizedRole)
+        let childElements: [AXElement] = shouldIncludeChildren ? createChildElements(children) : []
+        
+        // Create element with children if applicable
+        let axElement = AXElement(
+            role: normalizedRole,
+            description: description,
+            identifier: identifier,
+            roleDescription: roleDescription,
+            help: help,
+            bounds: bounds,
+            selected: selected,
+            enabled: enabled,
+            focused: focused,
+            children: childElements.isEmpty ? nil : childElements,
+            depth: depth,
+            index: myIndex,
+            parentIndex: parentIndex,
+            childIndices: [], // Will be updated
+            axElementRef: element
+        )
+        
+        // Add to array
+        elements.append(axElement)
+        
+        // Process children for flattening (separate from structure children)
+        for child in children {
+            let childStartIndex = currentIndex
+            flattenElement(child, depth: depth + 1, parentIndex: myIndex, elements: &elements, currentIndex: &currentIndex)
+            
+            // Only add to childIndices if the child was actually added (had meaningful content)
+            if currentIndex > childStartIndex {
+                childIndices.append(childStartIndex)
+            }
+        }
+        
+        // Update element with actual child indices (preserve existing children structure)
+        if myIndex < elements.count {
+            let existingChildren = elements[myIndex].children
+            elements[myIndex] = AXElement(
+                role: normalizedRole,
+                description: description,
+                identifier: identifier,
+                roleDescription: roleDescription,
+                help: help,
+                bounds: bounds,
+                selected: selected,
+                enabled: enabled,
+                focused: focused,
+                children: existingChildren,
+                depth: depth,
+                index: myIndex,
+                parentIndex: parentIndex,
+                childIndices: childIndices,
+                axElementRef: element
+            )
+        }
+    }
+    
+    private static func normalizeRole(_ role: String?) -> String? {
+        guard let role = role else { return nil }
+        
+        var normalized = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
+        
+        // Further normalize common roles
+        switch normalized {
+        case "StaticText":
+            normalized = "Text"
+        case "ScrollArea":
+            normalized = "Scroll"
+        case "TextField":
+            normalized = "Field"
+        case "CheckBox":
+            normalized = "Check"
+        case "RadioButton":
+            normalized = "Radio"
+        case "PopUpButton":
+            normalized = "PopUp"
+        default:
+            break
+        }
+        
+        return normalized
+    }
+    
+    /// Check if an element is interactive and should include children structure
+    private static func isInteractiveElement(role: String?) -> Bool {
+        guard let role = role else { return false }
+        
+        let interactiveRoles = [
+            "Button",
+            "Field", 
+            "Check",
+            "Radio",
+            "Slider",
+            "PopUp",
+            "Tab",
+            "MenuItem",
+            "Link"
+        ]
+        return interactiveRoles.contains(role)
+    }
+    
+    /// Create child elements for structure, flattening Groups
+    private static func createChildElements(_ elements: [AXUIElement]) -> [AXElement] {
+        var childElements: [AXElement] = []
+        
+        for element in elements {
+            let role = getStringProperty(element, kAXRoleAttribute)
+            let normalizedRole = normalizeRole(role)
+            
+            // If it's a Group, get its children instead of the Group itself
+            if normalizedRole == "Group" {
+                if let groupChildren = getChildrenProperty(element) {
+                    childElements.append(contentsOf: createChildElements(groupChildren))
+                }
+            } else {
+                // Create child element for non-Group elements
+                if let childElement = createChildElement(element) {
+                    childElements.append(childElement)
+                }
+            }
+        }
+        
+        return childElements
+    }
+    
+    /// Create a child element for structure (non-recursive)
+    private static func createChildElement(_ element: AXUIElement) -> AXElement? {
+        let role = getStringProperty(element, kAXRoleAttribute)
+        let description = getStringProperty(element, kAXDescriptionAttribute)
+        let identifier = getStringProperty(element, kAXIdentifierAttribute)
+        let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute)
+        let help = getStringProperty(element, kAXHelpAttribute)
+        let position = getPositionProperty(element)
+        let size = getSizeProperty(element)
+        let selected = getBoolProperty(element, kAXSelectedAttribute) ?? false
+        let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
+        let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
+        
+        // Skip elements without meaningful content
+        if role == nil && description == nil && identifier == nil && roleDescription == nil {
+            return nil
+        }
+        
+        let normalizedRole = normalizeRole(role)
+        
+        let bounds: [Int]? = {
+            guard let position = position, let size = size else { return nil }
+            return [
+                safeIntConversion(position.x),
+                safeIntConversion(position.y),
+                safeIntConversion(size.width),
+                safeIntConversion(size.height)
+            ]
+        }()
+        
+        return AXElement(
+            role: normalizedRole,
+            description: description,
+            identifier: identifier,
+            roleDescription: roleDescription,
+            help: help,
+            bounds: bounds,
+            selected: selected,
+            enabled: enabled,
+            focused: focused,
+            children: nil, // Child elements don't include their own children
+            depth: 0,
+            index: 0,
+            parentIndex: nil,
+            childIndices: [],
+            axElementRef: element
+        )
+    }
 }
 
 // MARK: - AX Dumper Errors

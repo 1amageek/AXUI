@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AXON is a Swift Package Manager library for converting macOS Accessibility API (AX) data into a lightweight JSON format. The project implements the "GUI ツリーデータ軽量 JSON フォーマット" specification v1.0, which serializes macOS accessibility tree dumps while preserving all information in a compact, human-readable format.
+AXON is a Swift Package Manager library for querying and extracting macOS Accessibility API (AX) data using a flat array representation. The project provides a powerful query system for identifying UI elements without relying on unique IDs.
 
 ### Key Features
-- Converts AX tree dumps to lightweight JSON without information loss
+- Query-based element identification without unique IDs
+- Flat array output of UI elements with preserved context
+- Compound matching conditions for precise element selection
+- Maintains relationships through indices (depth, parent/child)
 - Removes "AX" prefixes while preserving semantic meaning
-- Supports Group element optimization for minimal representation
-- Compatible with LLM prompts and Git diffs
-- Implements JSON Schema validation (Draft 2020-12)
+- Optimized for element interaction and automation
 
 ## Development Commands
 
@@ -33,63 +34,181 @@ swift test --filter <test-name>
 ## Architecture
 
 - **Package Structure**: Standard Swift Package Manager layout
-- **Main Library**: `Sources/AXON/AXON.swift` - implements AX to JSON conversion
+- **Main Library**: Core accessibility functionality in `Sources/AXUI/`
 - **Testing**: Uses Swift Testing framework (not XCTest) as evidenced by `import Testing` in test files
 - **Swift Version**: Requires Swift 6.1 minimum as specified in Package.swift
 - **Platform Requirements**: iOS 18+ and macOS 15+ as specified in Package.swift
 
-### JSON Format Specification
-
-The library implements a lightweight JSON format for GUI tree data with these key concepts:
-
-#### Node Structure
-- **Standard Nodes**: Objects with `role`, `bounds`, `state`, `children` etc.
-- **Group Minimal (G-Minimal)**: Arrays representing AXGroup with minimal attributes
-- **Group Object (G-Object)**: Standard objects with `role` key omitted for AXGroup
-
-#### Key Node Properties
-- `role`: Element type without "AX" prefix (e.g., "Button", "StaticText", "Window")
-- `value`: Display text content 
-- `bounds`: `[x,y,width,height]` as integers
-- `state`: Object with `selected`, `enabled`, `focused` booleans (omitted if all default)
-- `children`: Array of child nodes
-
-#### Compression Rules
-- JSON minified with `separators=(",",":")` 
-- All bounds values as integers
-- UTF-8 encoding without ASCII escaping
-- Optional gzip/MessagePack compression for storage/transport
-
-#### Document Structure
-```
-Window (root node, always single)
- ├ Toolbar (optional)
- └ Other nodes (recursive)
-```
-
-### Conversion Algorithm (AX Dump → JSON)
-
-1. **Tokenization**: Parse indentation/`Child[n]:`/`Element:` to manage depth stack
-2. **Property Extraction**: Extract `key: value` lines using regex 
-3. **Value Normalization**: 
-   - Remove "AX" prefix from Role values
-   - Convert Selected/Enabled/Focused to boolean
-   - Combine Position + Size into bounds array
-4. **State Integration**: Merge boolean states, omit if all default values
-5. **Group Optimization**: Apply G-Minimal vs G-Object rules based on attributes
-6. **Recursive Construction**: Build children arrays recursively
-7. **Output**: Minify JSON and optionally compress
-
-### Implementation Guidelines
-
-- **Swift Implementation**: Use `Codable` with `enum Node { case normal(NodeObj), case group([Node]) }`
-- **JSON Schema**: Full JSON Schema (Draft 2020-12) validation available in specification
-- **LLM Integration**: Add brief annotation explaining `value` field and array Group representation
-- **Large Data**: Consider MessagePack + HTTP Range for 100k+ node datasets
 
 ### Design Principles
 
 - **No Makeshift Fallbacks**: Never implement temporary workarounds or fallback mechanisms that mask underlying issues. Such approaches delay bug discovery and compromise system reliability. Always address root causes directly and fail fast when encountering invalid states or data.
+
+## Query-Based Element Identification System
+
+The library now includes a powerful query system for identifying UI elements without relying on unique IDs. This system addresses the challenge that AXUIElement instances don't have persistent identifiers.
+
+### Query System Architecture
+
+#### AXQuery Structure
+A flexible query structure that supports multiple matching conditions:
+
+```swift
+public struct AXQuery {
+    // Basic property matching
+    public var role: String?              // Exact role match
+    public var value: String?             // Exact value match
+    public var identifier: String?        // Exact identifier match
+    public var roleDescription: String?   // Exact role description match
+    public var help: String?              // Exact help text match
+    
+    // State matching
+    public var selected: Bool?
+    public var enabled: Bool?
+    public var focused: Bool?
+    
+    // Spatial queries
+    public var boundsContains: CGPoint?   // Element contains this point
+    public var boundsIntersects: CGRect?  // Element intersects this rectangle
+    public var minWidth: Int?             // Minimum width constraint
+    public var minHeight: Int?            // Minimum height constraint
+    
+    // Text pattern matching
+    public var valueContains: String?     // Substring match in value
+    public var valueRegex: String?        // Regex pattern for value
+    
+    // Relationship matching (uses flat array indices)
+    public var parent: AXQuery?           // Parent must match this query
+    public var hasChild: AXQuery?         // At least one child must match
+    
+    // Logical operators
+    public var and: [AXQuery]?            // All conditions must match
+    public var or: [AXQuery]?             // At least one condition must match
+}
+```
+
+#### Flat Element Representation
+Elements are represented in a flat array structure with context information:
+
+```swift
+public struct AXElement {
+    // Core properties
+    public let role: String?
+    public let value: String?
+    public let identifier: String?
+    public let roleDescription: String?
+    public let help: String?
+    public let bounds: CGRect?
+    public let selected: Bool
+    public let enabled: Bool
+    public let focused: Bool
+    
+    // Context information (preserves relationships in flat array)
+    public let depth: Int                 // Nesting level from root
+    public let index: Int                 // Unique index in flat array
+    public let parentIndex: Int?          // Index of parent element
+    public let childIndices: [Int]        // Indices of child elements
+    
+    // Native element reference
+    public let axElement: AXUIElement     // Original AX element
+}
+```
+
+### Query API
+
+New methods for querying elements:
+
+```swift
+// Query all elements in an application
+AXDumper.queryElements(bundleIdentifier: String, query: AXQuery) throws -> [AXElement]
+
+// Dump flat array with optional filtering
+AXDumper.dumpFlat(bundleIdentifier: String, query: AXQuery? = nil) throws -> [AXElement]
+
+// Query specific window
+AXDumper.dumpWindowFlat(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil) throws -> [AXElement]
+```
+
+### Query Examples
+
+```swift
+// Find all save buttons
+let query = AXQuery(role: "Button", valueContains: "Save", enabled: true)
+
+// Find text fields in specific area
+let query = AXQuery(
+    role: "Field",
+    boundsIntersects: CGRect(x: 0, y: 0, width: 500, height: 300)
+)
+
+// Complex relationship query
+let query = AXQuery(
+    role: "Button",
+    parent: AXQuery(role: "Toolbar"),
+    enabled: true
+)
+
+// Logical operators
+let query = AXQuery(
+    or: [
+        AXQuery(role: "Button", value: "OK"),
+        AXQuery(role: "Button", value: "Accept")
+    ]
+)
+```
+
+### Command Line Usage
+
+The CLI supports query syntax:
+
+```bash
+# Simple role query
+axon dump com.example.app --query role=Button
+
+# Multiple conditions (comma-separated)
+axon dump com.example.app --query 'role=Button,value=Save,enabled=true'
+
+# Text matching
+axon dump com.example.app --query 'role=Field,value.contains=user'
+
+# Spatial query
+axon dump com.example.app --query 'bounds.contains=100,200'
+
+# Output flat JSON array
+axon dump com.example.app --query role=Button --format flat
+```
+
+### JSON Output Format
+
+Query results are returned as a flat JSON array:
+
+```json
+[
+  {
+    "role": "Button",
+    "value": "Save",
+    "bounds": [100, 200, 80, 30],
+    "state": {"enabled": true},
+    "depth": 3,
+    "index": 42
+  },
+  {
+    "role": "Field", 
+    "value": "Username",
+    "identifier": "login-username",
+    "bounds": [50, 100, 200, 25],
+    "depth": 2,
+    "index": 15
+  }
+]
+```
+
+### Query Implementation Guidelines
+
+- **Performance**: Queries traverse elements once and build the flat array in a single pass
+- **Memory**: Large result sets are handled efficiently with streaming where possible
+- **Accuracy**: Spatial queries use integer bounds for consistency with the JSON format
+- **Extensibility**: Query structure is designed to be extended with new matching conditions
 
 ## Testing Framework
 

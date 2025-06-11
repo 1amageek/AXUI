@@ -47,13 +47,15 @@ struct Command: ParsableCommand {
         • axon app finder --pretty --output finder.json
         • axon bundle com.apple.weather --filter interactive
         • axon app xcode --window 0 --stats
+        • axon query safari "role=Button,description*=Save"
+        • axon query finder "role=Field,identifier*=search" --pretty
         • axon list --verbose
         • axon windows safari
 
         Requires accessibility permissions in System Preferences > Privacy & Security > Accessibility.
         """,
         version: "1.0.0",
-        subcommands: [AppCommand.self, BundleCommand.self, ListCommand.self, WindowsCommand.self]
+        subcommands: [AppCommand.self, BundleCommand.self, QueryCommand.self, ListCommand.self, WindowsCommand.self]
     )
 }
 
@@ -261,6 +263,144 @@ struct BundleCommand: ParsableCommand {
                 jsonSize: jsonOutput.count,
                 compressedSize: compressedData.count
             )
+        }
+    }
+}
+
+// MARK: - Query Command
+
+struct QueryCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "query",
+        abstract: "Query elements using flexible conditions",
+        discussion: """
+        Query elements using a flexible condition syntax. Returns a flat array of matching elements.
+        
+        Query Syntax:
+        • Exact match: role=Button, description=Save, identifier=login-btn
+        • Contains match: description*=text, identifier*=search
+        • Regex match: description~=.*[Ss]ave.*
+        • State match: enabled=true, selected=false, focused=true
+        • Size constraints: minWidth=100, maxHeight=50
+        
+        Multiple conditions can be combined with commas (AND logic):
+        role=Button,description*=Save,enabled=true
+        
+        Examples:
+        • axon query safari "role=Button"
+        • axon query finder "role=Field,identifier*=search"
+        • axon query notes "description*=text,enabled=true"
+        • axon query app --window 0 "role=Button,minWidth=50"
+        """,
+        aliases: ["q"]
+    )
+    
+    @Argument(help: "Application name or bundle identifier")
+    var appIdentifier: String
+    
+    @Argument(help: "Query string (e.g., 'role=Button,description=Save'). Use '*' for all elements.")
+    var queryString: String?
+    
+    @Option(name: .shortAndLong, help: "Output file path")
+    var output: String?
+    
+    @Flag(help: "Pretty-print JSON output")
+    var pretty: Bool = false
+    
+    @Flag(help: "Show query statistics")
+    var stats: Bool = false
+    
+    @Option(name: .shortAndLong, help: "Window index to query (default: all windows)")
+    var window: Int?
+    
+    func run() throws {
+        // Check accessibility permissions
+        guard AXDumper.checkAccessibilityPermissions() else {
+            print("❌ Accessibility permissions required")
+            print("Please enable accessibility access in:")
+            print("System Preferences > Privacy & Security > Accessibility")
+            throw ExitCode.failure
+        }
+        
+        // Find app bundle identifier
+        let bundleId: String
+        if appIdentifier.contains(".") {
+            bundleId = appIdentifier
+        } else {
+            guard let foundBundleId = findAppBundleId(appIdentifier) else {
+                print("❌ App '\(appIdentifier)' not found or not running")
+                print("Use 'axon list' to see running applications")
+                throw ExitCode.failure
+            }
+            bundleId = foundBundleId
+        }
+        
+        // Parse query (if provided)
+        let query: AXQuery?
+        if let queryString = queryString, queryString != "*" && !queryString.isEmpty {
+            guard let parsedQuery = AXQuery.parse(queryString) else {
+                print("❌ Invalid query syntax: \(queryString)")
+                print("Example: 'role=Button,description=Save' or 'description*=text,enabled=true'")
+                throw ExitCode.failure
+            }
+            query = parsedQuery
+            print("🔍 Querying \(appIdentifier) with: \(queryString)")
+        } else {
+            query = nil
+            print("🔍 Dumping all elements from \(appIdentifier)")
+        }
+        
+        // Execute query
+        let elements: [AXElement]
+        if let windowIndex = window {
+            elements = try AXDumper.dumpWindowFlat(
+                bundleIdentifier: bundleId,
+                windowIndex: windowIndex,
+                query: query
+            )
+        } else {
+            elements = try AXDumper.dumpFlat(
+                bundleIdentifier: bundleId,
+                query: query
+            )
+        }
+        
+        // Convert to JSON (flat array, no hierarchical structure)
+        let encoder = JSONEncoder()
+        if pretty {
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        } else {
+            encoder.outputFormatting = []
+        }
+        
+        let jsonData = try encoder.encode(elements)
+        let jsonOutput = String(data: jsonData, encoding: .utf8)!
+        
+        // Output
+        if let outputFile = output {
+            try writeToFile(jsonOutput, path: outputFile)
+            print("✅ Results saved to: \(outputFile)")
+        } else {
+            print(jsonOutput)
+        }
+        
+        // Statistics
+        if stats {
+            print("\n📊 Query Results:")
+            print("   Elements found: \(elements.count)")
+            print("   JSON size: \(formatBytes(jsonOutput.count))")
+            
+            // Show breakdown by role
+            let roleCount = Dictionary(grouping: elements, by: { $0.role ?? "Unknown" })
+                .mapValues { $0.count }
+                .sorted { $0.value > $1.value }
+            
+            if !roleCount.isEmpty {
+                print("   Element types:")
+                for (role, count) in roleCount {
+                    print("     \(role): \(count)")
+                }
+            }
         }
     }
 }

@@ -17,24 +17,11 @@ struct Command: ParsableCommand {
         Key Features:
         • Converts AX tree dumps to compact JSON without information loss
         • Removes "AX" prefixes while preserving semantic meaning (e.g., AXButton → Button)
-        • Supports element filtering by type or interaction capability
+        • Supports element querying with flexible conditions
         • Group element optimization for minimal representation
         • Pretty-printing and compression statistics
         • Per-window or full application dumping
         • Compatible with JSON Schema validation (Draft 2020-12)
-
-        Filtering Options:
-        • button - Button elements
-        • textfield - Text fields and text areas
-        • checkbox - Checkbox elements
-        • radiobutton - Radio button elements
-        • slider - Slider elements
-        • popupbutton - Popup button elements
-        • tab - Tab elements
-        • menuitem - Menu item elements
-        • link - Link elements
-        • interactive - All interactive elements (buttons, fields, checkboxes, etc.)
-        • all - No filtering (default)
 
         Common Use Cases:
         • GUI automation and testing scripts
@@ -45,7 +32,7 @@ struct Command: ParsableCommand {
 
         Example Usage:
         • axon app finder --pretty --output finder.json
-        • axon bundle com.apple.weather --filter interactive
+        • axon bundle com.apple.weather --stats
         • axon app xcode --window 0 --stats
         • axon query safari "role=Button,description*=Save"
         • axon query finder "role=Field,identifier*=search" --pretty
@@ -83,8 +70,6 @@ struct AppCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
-    @Option(help: "Filter by element type. Multiple filters can be comma-separated. Available types: button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive (all interactive elements), all (no filtering). Example: --filter button,textfield")
-    var filter: String?
     
     func run() throws {
         // Check accessibility permissions
@@ -108,30 +93,15 @@ struct AppCommand: ParsableCommand {
         let axDump: String
         if let windowIndex = window {
             // Dump specific window
-            if let filter = filter {
-                axDump = try AXDumper.dumpWindow(
-                    bundleIdentifier: bundleId,
-                    windowIndex: windowIndex,
-                    filter: filter
-                )
-            } else {
-                axDump = try AXDumper.dumpWindow(
-                    bundleIdentifier: bundleId,
-                    windowIndex: windowIndex
-                )
-            }
+            axDump = try AXDumper.dumpWindow(
+                bundleIdentifier: bundleId,
+                windowIndex: windowIndex
+            )
         } else {
             // Dump entire app
-            if let filter = filter {
-                axDump = try AXDumper.dump(
-                    bundleIdentifier: bundleId,
-                    filter: filter
-                )
-            } else {
-                axDump = try AXDumper.dump(
-                    bundleIdentifier: bundleId
-                )
-            }
+            axDump = try AXDumper.dump(
+                bundleIdentifier: bundleId
+            )
         }
         
         // Convert to JSON
@@ -187,8 +157,6 @@ struct BundleCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Window index to dump (default: all windows)")
     var window: Int?
     
-    @Option(help: "Filter by element type. Multiple filters can be comma-separated. Available types: button, textfield, checkbox, radiobutton, slider, popupbutton, tab, menuitem, link, interactive (all interactive elements), all (no filtering). Example: --filter button,textfield")
-    var filter: String?
     
     func run() throws {
         // Check accessibility permissions
@@ -213,30 +181,15 @@ struct BundleCommand: ParsableCommand {
         let axDump: String
         if let windowIndex = window {
             // Dump specific window
-            if let filter = filter {
-                axDump = try AXDumper.dumpWindow(
-                    bundleIdentifier: bundleId,
-                    windowIndex: windowIndex,
-                    filter: filter
-                )
-            } else {
-                axDump = try AXDumper.dumpWindow(
-                    bundleIdentifier: bundleId,
-                    windowIndex: windowIndex
-                )
-            }
+            axDump = try AXDumper.dumpWindow(
+                bundleIdentifier: bundleId,
+                windowIndex: windowIndex
+            )
         } else {
             // Dump entire app
-            if let filter = filter {
-                axDump = try AXDumper.dump(
-                    bundleIdentifier: bundleId,
-                    filter: filter
-                )
-            } else {
-                axDump = try AXDumper.dump(
-                    bundleIdentifier: bundleId
-                )
-            }
+            axDump = try AXDumper.dump(
+                bundleIdentifier: bundleId
+            )
         }
         
         // Convert to JSON

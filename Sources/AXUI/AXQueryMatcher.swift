@@ -124,33 +124,23 @@ public struct AXQueryMatcher {
             }
         }
         
-        // Hierarchical matching
-        if let parentQuery = query.parentQuery {
-            guard let parentIndex = element.parentIndex,
-                  parentIndex < allElements.count else {
-                return false
-            }
-            let parent = allElements[parentIndex]
-            if !matches(element: parent, query: parentQuery.value, allElements: allElements) {
-                return false
-            }
-        }
-        
+        // Hierarchical matching (simplified - only direct children)
         if let hasChildQuery = query.hasChildQuery {
-            let hasMatchingChild = element.childIndices.contains { childIndex in
-                guard childIndex < allElements.count else { return false }
-                let child = allElements[childIndex]
+            guard let children = element.children else { return false }
+            let hasMatchingChild = children.contains { child in
                 return matches(element: child, query: hasChildQuery.value, allElements: allElements)
             }
             if !hasMatchingChild { return false }
         }
         
         if let childCount = query.childCount {
-            if element.childIndices.count != childCount { return false }
+            let actualChildCount = element.children?.count ?? 0
+            if actualChildCount != childCount { return false }
         }
         
         if let minChildCount = query.minChildCount {
-            if element.childIndices.count < minChildCount { return false }
+            let actualChildCount = element.children?.count ?? 0
+            if actualChildCount < minChildCount { return false }
         }
         
         return true
@@ -184,13 +174,6 @@ extension AXQuery {
         var negated = AXQuery()
         negated.negatedQuery = Box(self)
         return negated
-    }
-    
-    /// Add a parent constraint
-    public func withParent(_ parentQuery: AXQuery) -> AXQuery {
-        var copy = self
-        copy.parentQuery = Box(parentQuery)
-        return copy
     }
     
     /// Add a child constraint

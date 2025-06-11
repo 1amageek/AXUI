@@ -77,11 +77,7 @@ struct QueryTests {
             selected: false,
             enabled: true,
             focused: false,
-            children: nil,
-            depth: 1,
-            index: 0,
-            parentIndex: nil,
-            childIndices: []
+            children: nil
         )
         
         // Test exact match

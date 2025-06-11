@@ -33,7 +33,6 @@ public struct AXQuery {
     public var identifierRegex: String?
     
     // Hierarchical context (using boxes to break recursion)
-    public var parentQuery: Box<AXQuery>?           // Parent must match this query
     public var hasChildQuery: Box<AXQuery>?         // At least one child matches
     public var childCount: Int?           // Exact child count
     public var minChildCount: Int?        // Minimum child count
@@ -70,18 +69,11 @@ public struct AXElement: Codable {
     public let state: AXElementState?
     public let children: [AXElement]?
     
-    // Context information (for internal use only)
-    internal let depth: Int
-    internal let index: Int
-    internal let parentIndex: Int?
-    internal let childIndices: [Int]
-    
     // Internal reference (not serialized)
     internal let axElementRef: AXUIElement?
     
     private enum CodingKeys: String, CodingKey {
         case role, description, identifier, roleDescription, help, bounds, state, children
-        // depth, index, parentIndex, childIndices are not included in JSON output
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -107,11 +99,6 @@ public struct AXElement: Codable {
         bounds = try container.decodeIfPresent([Int].self, forKey: .bounds)
         state = try container.decodeIfPresent(AXElementState.self, forKey: .state)
         children = try container.decodeIfPresent([AXElement].self, forKey: .children)
-        // Set default values for internal properties
-        depth = 0
-        index = 0
-        parentIndex = nil
-        childIndices = []
         axElementRef = nil
     }
     
@@ -126,10 +113,6 @@ public struct AXElement: Codable {
         enabled: Bool,
         focused: Bool,
         children: [AXElement]? = nil,
-        depth: Int,
-        index: Int,
-        parentIndex: Int?,
-        childIndices: [Int],
         axElementRef: AXUIElement? = nil
     ) {
         self.role = role
@@ -148,10 +131,6 @@ public struct AXElement: Codable {
         )
         self.state = state
         
-        self.depth = depth
-        self.index = index
-        self.parentIndex = parentIndex
-        self.childIndices = childIndices
         self.axElementRef = axElementRef
     }
 }

@@ -5,7 +5,7 @@ import Foundation
 @Test func testAIElementEncoderIDGeneration() throws {
     // Create test AXElements
     let child1 = AXElement(
-        role: "Button",
+        role: .button,
         description: "Save",
         identifier: "save-btn",
         roleDescription: "Save Button",
@@ -18,7 +18,7 @@ import Foundation
     )
     
     let child2 = AXElement(
-        role: "Button",
+        role: .button,
         description: "Cancel",
         identifier: "cancel-btn",
         roleDescription: "Cancel Button",
@@ -31,7 +31,7 @@ import Foundation
     )
     
     let parent = AXElement(
-        role: "Group",
+        role: .group,
         description: nil,
         identifier: "button-group",
         roleDescription: nil,
@@ -60,14 +60,14 @@ import Foundation
         if case .normal(let aiChild1) = children[0] {
             #expect(aiChild1.id.count == 4)
             #expect(aiChild1.id == child1.id)
-            #expect(aiChild1.role == "Button")
+            #expect(aiChild1.role == .button)
             #expect(aiChild1.value == "Save")
         }
         
         if case .normal(let aiChild2) = children[1] {
             #expect(aiChild2.id.count == 4)
             #expect(aiChild2.id == child2.id)
-            #expect(aiChild2.role == "Button")
+            #expect(aiChild2.role == .button)
             #expect(aiChild2.value == "Cancel")
         }
     }

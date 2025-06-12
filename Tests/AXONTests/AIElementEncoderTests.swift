@@ -7,7 +7,7 @@ import Foundation
     
     // Create an AXElement with known properties
     let axElement = AXElement(
-        role: "Button",
+        role: .button,
         description: "Save",
         identifier: "save-button",
         roleDescription: "Save Button",
@@ -27,7 +27,7 @@ import Foundation
     #expect(aiElement.id == axElement.id) // Should use the original AXElement ID
     
     // Verify other properties
-    #expect(aiElement.role == "Button")
+    #expect(aiElement.role == .button)
     #expect(aiElement.value == "Save")
     #expect(aiElement.desc == "Save Button")
 }
@@ -37,7 +37,7 @@ import Foundation
     
     // Create parent element
     let child1 = AXElement(
-        role: "StaticText",
+        role: .staticText,
         description: "Child 1",
         identifier: nil,
         roleDescription: nil,
@@ -50,7 +50,7 @@ import Foundation
     )
     
     let child2 = AXElement(
-        role: "Button",
+        role: .button,
         description: "Child 2",
         identifier: "child2",
         roleDescription: nil,
@@ -63,7 +63,7 @@ import Foundation
     )
     
     let parent = AXElement(
-        role: "Group",
+        role: .group,
         description: nil,
         identifier: "parent",
         roleDescription: nil,
@@ -89,13 +89,13 @@ import Foundation
         if case .normal(let aiChild1) = children[0] {
             #expect(aiChild1.id.count == 4)
             #expect(aiChild1.id == child1.id)
-            #expect(aiChild1.role == "Text") // StaticText is normalized to Text
+            #expect(aiChild1.role == .text) // StaticText is normalized to Text
         }
         
         if case .normal(let aiChild2) = children[1] {
             #expect(aiChild2.id.count == 4)
             #expect(aiChild2.id == child2.id)
-            #expect(aiChild2.role == "Button")
+            #expect(aiChild2.role == .button)
         }
     }
 }
@@ -105,7 +105,7 @@ import Foundation
     
     // Create a group with only children (should use minimal representation)
     let child = AXElement(
-        role: "Button",
+        role: .button,
         description: "Test",
         identifier: "test-btn",
         roleDescription: nil,
@@ -118,7 +118,7 @@ import Foundation
     )
     
     let group = AXElement(
-        role: "Group",
+        role: .group,
         description: nil,
         identifier: nil,
         roleDescription: nil,
@@ -148,7 +148,7 @@ import Foundation
     let encoder = AIElementEncoder()
     
     let axElement = AXElement(
-        role: "Button",
+        role: .button,
         description: "Click Me",
         identifier: "click-button",
         roleDescription: nil,
@@ -178,7 +178,7 @@ import Foundation
     
     // Create identical elements to test ID generation consistency
     let axElement1 = AXElement(
-        role: "TextField",
+        role: .textField,
         description: "Username",
         identifier: "username",
         roleDescription: nil,
@@ -191,7 +191,7 @@ import Foundation
     )
     
     let axElement2 = AXElement(
-        role: "TextField",
+        role: .textField,
         description: "Username",
         identifier: "username",
         roleDescription: nil,

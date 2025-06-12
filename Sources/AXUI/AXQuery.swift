@@ -51,7 +51,7 @@ public struct ComparisonQuery<T: Comparable & Codable>: Codable {
 /// A flexible query structure for matching UI elements based on multiple conditions
 public struct AXQuery {
     // Basic properties
-    public var role: String?
+    public var role: Role?
     public var description: String?
     public var identifier: String?
     public var roleDescription: String?
@@ -105,7 +105,7 @@ extension AXQuery {
     /// Create a query for buttons
     public static func button(description: String? = nil) -> AXQuery {
         var query = AXQuery()
-        query.role = "Button"
+        query.role = .button
         query.description = description
         return query
     }
@@ -113,7 +113,7 @@ extension AXQuery {
     /// Create a query for text fields
     public static func textField(identifier: String? = nil) -> AXQuery {
         var query = AXQuery()
-        query.role = "Field"
+        query.role = .field
         query.identifier = identifier
         return query
     }
@@ -122,23 +122,23 @@ extension AXQuery {
     public static func interactive() -> AXQuery {
         var query = AXQuery()
         var buttonQuery = AXQuery()
-        buttonQuery.role = "Button"
+        buttonQuery.role = .button
         var fieldQuery = AXQuery()
-        fieldQuery.role = "Field"
+        fieldQuery.role = .field
         var checkQuery = AXQuery()
-        checkQuery.role = "Check"
+        checkQuery.role = .check
         var radioQuery = AXQuery()
-        radioQuery.role = "Radio"
+        radioQuery.role = .radio
         var sliderQuery = AXQuery()
-        sliderQuery.role = "Slider"
+        sliderQuery.role = .slider
         var popupQuery = AXQuery()
-        popupQuery.role = "PopUp"
+        popupQuery.role = .popUp
         var tabQuery = AXQuery()
-        tabQuery.role = "Tab"
+        tabQuery.role = .tabGroup
         var menuQuery = AXQuery()
-        menuQuery.role = "MenuItem"
+        menuQuery.role = .menuItem
         var linkQuery = AXQuery()
-        linkQuery.role = "Link"
+        linkQuery.role = .link
         
         query.orQueries = [
             Box(buttonQuery),
@@ -244,7 +244,7 @@ extension AXQuery {
                 
                 switch key {
                 case "role":
-                    if op == "=" { query.role = String(value) }
+                    if op == "=" { query.role = Role(rawValue: String(value)) }
                 case "description":
                     if op == "=" { query.description = String(value) }
                 case "identifier":

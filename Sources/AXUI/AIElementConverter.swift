@@ -23,7 +23,7 @@ public struct AIElementConverter: Sendable {
     
     /// Convert AXElement to flat AI element (without nested children structure)
     private func convertToAIElement(from axElement: AXElement) -> AIElement {
-        let normalizedRole = normalizeRole(axElement.role)
+        let normalizedRole = axElement.role?.normalized.rawValue
         let value = axElement.description
         let identifier = axElement.identifier
         let desc = filterRedundantDescription(role: normalizedRole, roleDescription: axElement.roleDescription)
@@ -33,7 +33,7 @@ public struct AIElementConverter: Sendable {
         // For flat representation, we don't include children structure
         return AIElement(
             id: axElement.id,
-            role: normalizedRole,
+            role: axElement.role?.normalized,
             value: value,
             identifier: identifier,
             desc: desc,
@@ -54,34 +54,6 @@ public struct AIElementConverter: Sendable {
         )
     }
     
-    /// Normalize role names for AI format
-    private func normalizeRole(_ role: String?) -> String? {
-        guard let role = role else { return nil }
-        
-        var normalized = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
-        
-        // Further normalize common roles
-        switch normalized {
-        case "StaticText":
-            normalized = "Text"
-        case "ScrollArea":
-            normalized = "Scroll"
-        case "TextField":
-            normalized = "Field"
-        case "CheckBox":
-            normalized = "Check"
-        case "RadioButton":
-            normalized = "Radio"
-        case "PopUpButton":
-            normalized = "PopUp"
-        case "GenericElement":
-            normalized = "Generic"
-        default:
-            break
-        }
-        
-        return normalized
-    }
     
     /// Filter out redundant role descriptions that don't add meaningful information
     private func filterRedundantDescription(role: String?, roleDescription: String?) -> String? {

@@ -5,7 +5,7 @@ import Foundation
 @Test func testAXElementIDGeneration() {
     // Test basic ID generation
     let element = AXElement(
-        role: "Button",
+        role: .button,
         description: "Test Button",
         identifier: "test-btn",
         roleDescription: nil,
@@ -27,7 +27,7 @@ import Foundation
 @Test func testAXElementIDConsistency() {
     // Create two elements with identical properties
     let element1 = AXElement(
-        role: "TextField",
+        role: .textField,
         description: "Username",
         identifier: "username-field",
         roleDescription: nil,
@@ -40,7 +40,7 @@ import Foundation
     )
     
     let element2 = AXElement(
-        role: "TextField",
+        role: .textField,
         description: "Username",
         identifier: "username-field",
         roleDescription: nil,
@@ -59,7 +59,7 @@ import Foundation
 @Test func testAXElementIDUniqueness() {
     // Create elements with different properties
     let element1 = AXElement(
-        role: "Button",
+        role: .button,
         description: "Save",
         identifier: "save-btn",
         roleDescription: nil,
@@ -72,7 +72,7 @@ import Foundation
     )
     
     let element2 = AXElement(
-        role: "Button",
+        role: .button,
         description: "Cancel",
         identifier: "cancel-btn",
         roleDescription: nil,
@@ -91,7 +91,7 @@ import Foundation
 @Test func testAXElementIDWithMissingProperties() {
     // Test with minimal properties
     let element1 = AXElement(
-        role: "Label",
+        role: .staticText,
         description: nil,
         identifier: nil,
         roleDescription: nil,
@@ -140,7 +140,7 @@ import Foundation
 
 @Test func testAXElementIDSerialization() throws {
     let element = AXElement(
-        role: "Button",
+        role: .button,
         description: "Test",
         identifier: "test",
         roleDescription: nil,

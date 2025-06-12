@@ -55,7 +55,7 @@ public final class AIElementEncoder: Sendable {
         let id = axElement.id
         
         // Normalize role (remove AX prefix if present)
-        let normalizedRole = normalizeRole(axElement.role)
+        let normalizedRole = axElement.role?.normalized.rawValue
         
         // Map description to value for AI clarity
         let value = axElement.description
@@ -86,7 +86,7 @@ public final class AIElementEncoder: Sendable {
         
         return AIElement(
             id: id,
-            role: normalizedRole,
+            role: axElement.role?.normalized,
             value: value,
             desc: desc,
             bounds: bounds,
@@ -102,34 +102,6 @@ public final class AIElementEncoder: Sendable {
     
     // MARK: - Private Conversion Methods
     
-    
-    private func normalizeRole(_ role: String?) -> String? {
-        guard let role = role else { return nil }
-        
-        var normalized = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
-        
-        // Further normalize common roles
-        switch normalized {
-        case "StaticText":
-            normalized = "Text"
-        case "ScrollArea":
-            normalized = "Scroll"
-        case "TextField":
-            normalized = "Field"
-        case "CheckBox":
-            normalized = "Check"
-        case "RadioButton":
-            normalized = "Radio"
-        case "PopUpButton":
-            normalized = "PopUp"
-        case "GenericElement":
-            normalized = "Generic"
-        default:
-            break
-        }
-        
-        return normalized
-    }
     
     /// Filter out redundant role descriptions that don't add meaningful information
     private func filterRedundantDescription(role: String?, roleDescription: String?) -> String? {

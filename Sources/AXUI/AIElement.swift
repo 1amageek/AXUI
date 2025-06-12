@@ -6,7 +6,7 @@ public struct AIElement: Codable {
     public let id: String
     
     /// Element type without "AX" prefix (e.g., "Button", "StaticText", "Window")
-    public let role: String?
+    public let role: Role?
     
     /// Display text content (mapped from description)
     public let value: String?
@@ -29,7 +29,7 @@ public struct AIElement: Codable {
     /// Initialize AIElement
     public init(
         id: String,
-        role: String? = nil,
+        role: Role? = nil,
         value: String? = nil,
         identifier: String? = nil,
         desc: String? = nil,

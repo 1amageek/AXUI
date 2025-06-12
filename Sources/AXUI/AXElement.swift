@@ -8,7 +8,7 @@ public struct AXElement: Codable {
     public let id: String
     
     // Core properties
-    public let role: String?
+    public let role: Role?
     public let description: String?
     public let identifier: String?
     public let roleDescription: String?
@@ -39,7 +39,7 @@ public struct AXElement: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(role, forKey: .role)
+        try container.encodeIfPresent(role?.rawValue, forKey: .role)
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(identifier, forKey: .identifier)
         try container.encodeIfPresent(roleDescription, forKey: .roleDescription)
@@ -54,7 +54,8 @@ public struct AXElement: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
-        role = try container.decodeIfPresent(String.self, forKey: .role)
+        let roleString = try container.decodeIfPresent(String.self, forKey: .role)
+        role = roleString != nil ? Role(rawValue: roleString!) : nil
         description = try container.decodeIfPresent(String.self, forKey: .description)
         identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
         roleDescription = try container.decodeIfPresent(String.self, forKey: .roleDescription)
@@ -67,7 +68,7 @@ public struct AXElement: Codable {
     }
     
     public init(
-        role: String?,
+        role: Role?,
         description: String?,
         identifier: String?,
         roleDescription: String?,
@@ -101,7 +102,7 @@ public struct AXElement: Codable {
         
         // Generate consistent ID based on element properties
         self.id = Self.generateID(
-            role: role,
+            role: role?.rawValue,
             identifier: identifier,
             position: position,
             size: size

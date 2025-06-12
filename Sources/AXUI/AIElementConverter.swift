@@ -25,6 +25,7 @@ public struct AIElementConverter: Sendable {
     private func convertToAIElement(from axElement: AXElement) -> AIElement {
         let normalizedRole = normalizeRole(axElement.role)
         let value = axElement.description
+        let identifier = axElement.identifier
         let desc = filterRedundantDescription(role: normalizedRole, roleDescription: axElement.roleDescription)
         let bounds = axElement.bounds
         let state = convertState(from: axElement.state)
@@ -34,6 +35,7 @@ public struct AIElementConverter: Sendable {
             id: axElement.id,
             role: normalizedRole,
             value: value,
+            identifier: identifier,
             desc: desc,
             bounds: bounds,
             state: state?.isDefault == false ? state : nil,

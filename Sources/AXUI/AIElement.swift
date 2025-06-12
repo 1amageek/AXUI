@@ -11,6 +11,9 @@ public struct AIElement: Codable {
     /// Display text content (mapped from description)
     public let value: String?
     
+    /// Element identifier (accessibility identifier)
+    public let identifier: String?
+    
     /// Role description (mapped from roleDescription)
     public let desc: String?
     
@@ -28,6 +31,7 @@ public struct AIElement: Codable {
         id: String,
         role: String? = nil,
         value: String? = nil,
+        identifier: String? = nil,
         desc: String? = nil,
         bounds: [Int]? = nil,
         state: AIElementState? = nil,
@@ -36,6 +40,7 @@ public struct AIElement: Codable {
         self.id = id
         self.role = role
         self.value = value
+        self.identifier = identifier
         self.desc = desc
         self.bounds = bounds
         self.state = state

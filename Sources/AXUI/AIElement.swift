@@ -2,6 +2,9 @@ import Foundation
 
 /// AI-optimized representation of an accessibility element
 public struct AIElement: Codable {
+    /// Unique 4-character identifier
+    public let id: String
+    
     /// Element type without "AX" prefix (e.g., "Button", "StaticText", "Window")
     public let role: String?
     
@@ -22,6 +25,7 @@ public struct AIElement: Codable {
     
     /// Initialize AIElement
     public init(
+        id: String,
         role: String? = nil,
         value: String? = nil,
         desc: String? = nil,
@@ -29,6 +33,7 @@ public struct AIElement: Codable {
         state: AIElementState? = nil,
         children: [Node]? = nil
     ) {
+        self.id = id
         self.role = role
         self.value = value
         self.desc = desc

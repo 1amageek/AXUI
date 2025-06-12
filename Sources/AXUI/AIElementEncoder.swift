@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Encoder for converting AX elements to AI-optimized format
 public final class AIElementEncoder: Sendable {
@@ -45,6 +46,14 @@ public final class AIElementEncoder: Sendable {
     
     /// Convert AXElement to AIElement
     public func convert(from axElement: AXElement) -> AIElement {
+        return convert(from: axElement, parentPath: [])
+    }
+    
+    /// Convert AXElement to AIElement with hierarchical path tracking
+    private func convert(from axElement: AXElement, parentPath: [Int]) -> AIElement {
+        // Generate ID based on the element's properties or path
+        let id = generateID(for: axElement, path: parentPath)
+        
         // Normalize role (remove AX prefix if present)
         let normalizedRole = normalizeRole(axElement.role)
         
@@ -60,12 +69,13 @@ public final class AIElementEncoder: Sendable {
         // Convert state
         let state = convertState(from: axElement.state)
         
-        // Convert children
-        let children = convertChildren(from: axElement.children)
+        // Convert children with path tracking
+        let children = convertChildren(from: axElement.children, parentPath: parentPath)
         
         // Apply Group optimization rules
         if normalizedRole == "Group" {
             return applyGroupOptimization(
+                id: id,
                 value: value,
                 desc: desc,
                 bounds: bounds,
@@ -75,6 +85,7 @@ public final class AIElementEncoder: Sendable {
         }
         
         return AIElement(
+            id: id,
             role: normalizedRole,
             value: value,
             desc: desc,
@@ -90,6 +101,63 @@ public final class AIElementEncoder: Sendable {
     }
     
     // MARK: - Private Conversion Methods
+    
+    /// Generate a unique 4-character ID for an AXElement
+    private func generateID(for element: AXElement, path: [Int]) -> String {
+        // If the AXElement already has an ID, use it
+        if !element.id.isEmpty {
+            return element.id
+        }
+        
+        // Otherwise, generate an ID based on properties and path
+        var hashInput = ""
+        
+        if let role = element.role {
+            hashInput += role
+        }
+        
+        if let identifier = element.identifier {
+            hashInput += identifier
+        }
+        
+        if let description = element.description {
+            hashInput += description
+        }
+        
+        // Add path information for uniqueness
+        let pathString = path.map { String($0) }.joined(separator: "-")
+        if !pathString.isEmpty {
+            hashInput += pathString
+        }
+        
+        // If no meaningful components, use bounds as fallback
+        if hashInput.isEmpty, let bounds = element.bounds {
+            hashInput = "\(bounds[0])-\(bounds[1])-\(bounds[2])-\(bounds[3])"
+        }
+        
+        // If still empty, use a default
+        if hashInput.isEmpty {
+            hashInput = "element-\(path.map { String($0) }.joined(separator: "-"))"
+        }
+        
+        // Generate SHA256 hash
+        let data = hashInput.data(using: .utf8)!
+        let hash = SHA256.hash(data: data)
+        
+        // Convert hash bytes to alphanumeric string
+        let alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        var id = ""
+        
+        // Take first 4 bytes and map to alphanumeric characters
+        let hashBytes = Array(hash)
+        for i in 0..<4 {
+            let byte = hashBytes[i]
+            let index = Int(byte) % alphanumeric.count
+            id += String(alphanumeric[alphanumeric.index(alphanumeric.startIndex, offsetBy: index)])
+        }
+        
+        return id
+    }
     
     private func normalizeRole(_ role: String?) -> String? {
         guard let role = role else { return nil }
@@ -373,16 +441,18 @@ public final class AIElementEncoder: Sendable {
         return state.isDefault ? nil : state
     }
     
-    private func convertChildren(from axChildren: [AXElement]?) -> [AIElement.Node]? {
+    private func convertChildren(from axChildren: [AXElement]?, parentPath: [Int]) -> [AIElement.Node]? {
         guard let axChildren = axChildren, !axChildren.isEmpty else { return nil }
         
-        return axChildren.map { child in
-            let aiChild = convert(from: child)
+        return axChildren.enumerated().map { index, child in
+            let childPath = parentPath + [index]
+            let aiChild = convert(from: child, parentPath: childPath)
             return .normal(aiChild)
         }
     }
     
     private func applyGroupOptimization(
+        id: String,
         value: String?,
         desc: String?,
         bounds: [Int]?,
@@ -398,6 +468,7 @@ public final class AIElementEncoder: Sendable {
         if !hasNonDefaultAttributes && children != nil {
             // G-Minimal: Return element with nil role for array representation
             return AIElement(
+                id: id,
                 role: nil,
                 value: nil,
                 desc: nil,
@@ -408,6 +479,7 @@ public final class AIElementEncoder: Sendable {
         } else {
             // G-Object: Standard object with role omitted
             return AIElement(
+                id: id,
                 role: nil, // Group role is omitted in AI format
                 value: value,
                 desc: desc,
@@ -445,6 +517,7 @@ extension AIElement {
         } else {
             // Standard object encoding
             var container = encoder.container(keyedBy: AIElementCodingKeys.self)
+            try container.encode(id, forKey: .id)
             try container.encodeIfPresent(role, forKey: .role)
             try container.encodeIfPresent(value, forKey: .value)
             try container.encodeIfPresent(desc, forKey: .desc)
@@ -456,5 +529,5 @@ extension AIElement {
 }
 
 private enum AIElementCodingKeys: String, CodingKey {
-    case role, value, desc, bounds, state, children
+    case id, role, value, desc, bounds, state, children
 }

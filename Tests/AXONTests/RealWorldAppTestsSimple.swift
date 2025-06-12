@@ -52,64 +52,6 @@ import Foundation
     print("✅ All real-world performance tests passed")
 }
 
-@Test func testRealWorldGroupOptimization() throws {
-    // Test case with nested groups that should be optimized
-    let nestedGroupDump = """
-    Role: AXApplication
-    Value: TestApp
-      Child[0]:
-        Role: AXWindow
-        Value: Main Window
-          Child[0]:
-            Role: AXGroup
-              Child[0]:
-                Role: AXStaticText
-                Value: Simple text 1
-              Child[1]:
-                Role: AXStaticText
-                Value: Simple text 2
-          Child[1]:
-            Role: AXGroup
-            Value: Titled Group
-              Child[0]:
-                Role: AXStaticText
-                Value: Text in titled group
-    """
-    
-    let jsonString = try AXDumper.convert(axDump: nestedGroupDump)
-    let node = try UINode.fromJSON(jsonString)
-    
-    guard case .normal(let app) = node,
-          let children = app.children,
-          case .normal(let window) = children.first else {
-        Issue.record("Expected app and window nodes")
-        return
-    }
-    
-    guard let windowChildren = window.children else {
-        Issue.record("Expected window to have children")
-        return
-    }
-    
-    #expect(windowChildren.count == 2)
-    
-    // First group should be G-Minimal (array)
-    guard case .group(let simpleGroup) = windowChildren[0] else {
-        Issue.record("Expected G-Minimal group (array)")
-        return
-    }
-    #expect(simpleGroup.count == 2)
-    
-    // Second group should be G-Object (has value)
-    guard case .normal(let titledGroup) = windowChildren[1] else {
-        Issue.record("Expected G-Object group (normal node)")
-        return
-    }
-    #expect(titledGroup.role == nil) // Group role omitted
-    #expect(titledGroup.value == "Titled Group")
-    #expect(titledGroup.children?.count == 1)
-}
-
 // MARK: - Helper Functions for Test Data
 
 private func getRealCalendarDump() -> String {

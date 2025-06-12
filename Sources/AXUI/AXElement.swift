@@ -1,8 +1,12 @@
 import Foundation
 import ApplicationServices
+import CryptoKit
 
 
 public struct AXElement: Codable {
+    // Generated ID
+    public let id: String
+    
     // Core properties
     public let role: String?
     public let description: String?
@@ -29,11 +33,12 @@ public struct AXElement: Codable {
     internal let axElementRef: AXUIElement?
     
     private enum CodingKeys: String, CodingKey {
-        case role, description, identifier, roleDescription, help, position, size, state, children
+        case id, role, description, identifier, roleDescription, help, position, size, state, children
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
         try container.encodeIfPresent(role, forKey: .role)
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(identifier, forKey: .identifier)
@@ -48,6 +53,7 @@ public struct AXElement: Codable {
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
         role = try container.decodeIfPresent(String.self, forKey: .role)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
@@ -92,6 +98,55 @@ public struct AXElement: Codable {
         self.state = state
         
         self.axElementRef = axElementRef
+        
+        // Generate consistent ID based on element properties
+        self.id = Self.generateID(
+            role: role,
+            identifier: identifier,
+            position: position,
+            size: size
+        )
+    }
+    
+    /// Generates a consistent 4-character alphanumeric ID based on element properties
+    private static func generateID(role: String?, identifier: String?, position: Point?, size: Size?) -> String {
+        // Create a string representation of the key properties
+        var hashInput = ""
+        if let role = role {
+            hashInput += role
+        }
+        if let identifier = identifier {
+            hashInput += identifier
+        }
+        if let position = position {
+            hashInput += "\(position.x),\(position.y)"
+        }
+        if let size = size {
+            hashInput += "\(size.width),\(size.height)"
+        }
+        
+        // If we have no properties, use a random fallback
+        if hashInput.isEmpty {
+            hashInput = UUID().uuidString
+        }
+        
+        // Generate SHA256 hash using CryptoKit
+        let data = hashInput.data(using: .utf8)!
+        let hash = SHA256.hash(data: data)
+        
+        // Convert hash bytes to alphanumeric string
+        let alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        var id = ""
+        
+        // Take first 4 bytes and map to alphanumeric characters
+        let hashBytes = Array(hash)
+        for i in 0..<4 {
+            let index = Int(hashBytes[i]) % alphanumeric.count
+            let charIndex = alphanumeric.index(alphanumeric.startIndex, offsetBy: index)
+            id.append(alphanumeric[charIndex])
+        }
+        
+        return id
     }
 }
 

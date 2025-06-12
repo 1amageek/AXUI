@@ -31,6 +31,7 @@ public struct AIElementConverter: Sendable {
         
         // For flat representation, we don't include children structure
         return AIElement(
+            id: axElement.id,
             role: normalizedRole,
             value: value,
             desc: desc,

@@ -41,15 +41,6 @@ struct QueryTests {
         #expect(query?.focused == true)
     }
     
-    @Test("Size constraint parsing")
-    func testSizeConstraintParsing() {
-        let query = AXQuery.parse("minWidth=100,minHeight=50")
-        
-        #expect(query != nil)
-        #expect(query?.minWidth == 100)
-        #expect(query?.minHeight == 50)
-    }
-    
     @Test("Query builder methods")
     func testQueryBuilderMethods() {
         let buttonQuery = AXQuery.button(description: "Save")

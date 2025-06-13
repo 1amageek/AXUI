@@ -17,27 +17,27 @@ public final class AIElementEncoder: Sendable {
     // MARK: - Public Encoding Methods
     
     /// Encode AIElement to JSON string
-    public func encode(_ element: AIElement, pretty: Bool = false) throws -> String {
+    internal func encode(_ element: AIElement, pretty: Bool = false) throws -> String {
         let encoder = pretty ? prettyEncoder : minifiedEncoder
         let data = try encoder.encode(element)
         return String(data: data, encoding: .utf8) ?? ""
     }
     
     /// Encode AIElement array to JSON string
-    public func encode(_ elements: [AIElement], pretty: Bool = false) throws -> String {
+    internal func encode(_ elements: [AIElement], pretty: Bool = false) throws -> String {
         let encoder = pretty ? prettyEncoder : minifiedEncoder
         let data = try encoder.encode(elements)
         return String(data: data, encoding: .utf8) ?? ""
     }
     
     /// Encode AIElement to JSON data
-    public func encodeToData(_ element: AIElement, pretty: Bool = false) throws -> Data {
+    internal func encodeToData(_ element: AIElement, pretty: Bool = false) throws -> Data {
         let encoder = pretty ? prettyEncoder : minifiedEncoder
         return try encoder.encode(element)
     }
     
     /// Encode AIElement array to JSON data
-    public func encodeToData(_ elements: [AIElement], pretty: Bool = false) throws -> Data {
+    internal func encodeToData(_ elements: [AIElement], pretty: Bool = false) throws -> Data {
         let encoder = pretty ? prettyEncoder : minifiedEncoder
         return try encoder.encode(elements)
     }
@@ -45,7 +45,7 @@ public final class AIElementEncoder: Sendable {
     // MARK: - AXElement to AIElement Conversion
     
     /// Convert AXElement to AIElement
-    public func convert(from axElement: AXElement) -> AIElement {
+    internal func convert(from axElement: AXElement) -> AIElement {
         return convert(from: axElement, parentPath: [])
     }
     
@@ -96,7 +96,7 @@ public final class AIElementEncoder: Sendable {
     }
     
     /// Convert array of AXElements to AIElements
-    public func convert(from axElements: [AXElement]) -> [AIElement] {
+    internal func convert(from axElements: [AXElement]) -> [AIElement] {
         return axElements.map { convert(from: $0) }
     }
     

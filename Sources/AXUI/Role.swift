@@ -2,7 +2,7 @@ import Foundation
 
 /// Accessibility element roles based on NSAccessibility constants
 /// All roles follow the project convention of removing "AX" prefixes
-public enum Role: String, Codable, CaseIterable {
+public enum Role: String, Codable, CaseIterable, Sendable {
     // Application and system
     case application = "Application"
     case systemWide = "SystemWide"

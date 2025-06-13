@@ -1,9 +1,9 @@
 import Foundation
-import ApplicationServices
+@preconcurrency import ApplicationServices
 
 // MARK: - Basic Types
 
-public struct Point: Codable {
+public struct Point: Codable, Sendable {
     public let x: Double
     public let y: Double
     
@@ -13,7 +13,7 @@ public struct Point: Codable {
     }
 }
 
-public struct Size: Codable {
+public struct Size: Codable, Sendable {
     public let width: Double
     public let height: Double
     
@@ -25,7 +25,7 @@ public struct Size: Codable {
 
 // MARK: - Comparison Query
 
-public struct ComparisonQuery<T: Comparable & Codable>: Codable {
+public struct ComparisonQuery<T: Comparable & Codable & Sendable>: Codable, Sendable {
     public var equals: T?
     public var notEquals: T?
     public var greaterThan: T?
@@ -49,7 +49,7 @@ public struct ComparisonQuery<T: Comparable & Codable>: Codable {
 // MARK: - AX Query System
 
 /// A flexible query structure for matching UI elements based on multiple conditions
-public struct AXQuery {
+public struct AXQuery: Sendable {
     // Basic properties
     public var role: Role?
     public var description: String?
@@ -91,7 +91,7 @@ public struct AXQuery {
 
 // MARK: - Box for Recursive Types
 
-public final class Box<T> {
+public final class Box<T: Sendable>: @unchecked Sendable {
     public let value: T
     
     public init(_ value: T) {

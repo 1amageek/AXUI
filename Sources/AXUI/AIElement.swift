@@ -1,7 +1,7 @@
 import Foundation
 
 /// AI-optimized representation of an accessibility element
-public struct AIElement: Codable {
+public struct AIElement: Codable, Sendable {
     /// Unique 4-character identifier
     public let id: String
     
@@ -48,7 +48,7 @@ public struct AIElement: Codable {
     }
     
     /// Node representation for Group optimization
-    public enum Node: Codable {
+    public enum Node: Codable, Sendable {
         case normal(AIElement)
         case group([Node])
         
@@ -72,7 +72,7 @@ public struct AIElement: Codable {
 }
 
 /// Element state with smart omission of default values
-public struct AIElementState: Codable {
+public struct AIElementState: Codable, Sendable {
     public let selected: Bool?
     public let enabled: Bool?
     public let focused: Bool?

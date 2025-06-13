@@ -1,9 +1,9 @@
 import Foundation
-import ApplicationServices
+@preconcurrency import ApplicationServices
 import CryptoKit
 
 
-public struct AXElement: Codable {
+public struct AXElement: Codable, @unchecked Sendable {
     // Generated ID
     public let id: String
     
@@ -32,7 +32,7 @@ public struct AXElement: Codable {
     // Internal reference (not serialized)
     internal let axElementRef: AXUIElement?
     
-    private enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey, Sendable {
         case id, role, description, identifier, roleDescription, help, position, size, state, children
     }
     
@@ -152,7 +152,7 @@ public struct AXElement: Codable {
 }
 
 /// Element state for flat representation
-public struct AXElementState: Codable {
+public struct AXElementState: Codable, Sendable {
     public let selected: Bool?
     public let enabled: Bool?
     public let focused: Bool?

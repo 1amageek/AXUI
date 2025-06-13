@@ -444,6 +444,6 @@ extension AIElement {
     }
 }
 
-private enum AIElementCodingKeys: String, CodingKey {
+private enum AIElementCodingKeys: String, CodingKey, Sendable {
     case id, role, value, desc, bounds, state, children
 }

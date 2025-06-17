@@ -42,7 +42,7 @@ struct Command: ParsableCommand {
         Requires accessibility permissions in System Preferences > Privacy & Security > Accessibility.
         """,
         version: "1.0.0",
-        subcommands: [DumpCommand.self, ListCommand.self, WindowsCommand.self]
+        subcommands: [DumpCommand.self, DebugDumpCommand.self, ListCommand.self, WindowsCommand.self]
     )
 }
 
@@ -169,6 +169,116 @@ struct DumpCommand: ParsableCommand {
         // Statistics
         if stats {
             print("\n📊 Dump Results:")
+            print("   Elements found: \(elements.count)")
+            print("   JSON size: \(formatBytes(jsonOutput.count))")
+            
+            // Show breakdown by role
+            let roleCount = Dictionary(grouping: elements, by: { $0.role?.rawValue ?? "Unknown" })
+                .mapValues { $0.count }
+                .sorted { $0.value > $1.value }
+            
+            if !roleCount.isEmpty {
+                print("   Element types:")
+                for (role, count) in roleCount {
+                    print("     \(role): \(count)")
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Debug Dump Command
+
+struct DebugDumpCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "debug-dump",
+        abstract: "Debug dump with minimal filtering - includes zero-size elements and bypasses content filtering",
+        discussion: """
+        Debug dump that bypasses most filtering logic to show the raw accessibility tree.
+        This includes zero-size elements and elements without meaningful content, but skips Group elements.
+        
+        Use this command to debug why certain elements are not appearing in regular dumps.
+        
+        Usage:
+        • axon debug-dump <app> - Debug dump all elements
+        • axon debug-dump <app> --window 0 - Debug dump specific window
+        
+        Examples:
+        • axon debug-dump メモ
+        • axon debug-dump safari --window 0 --pretty
+        """,
+        aliases: ["debug", "dd"]
+    )
+    
+    @Argument(help: "Application name or bundle identifier")
+    var appIdentifier: String
+    
+    @Option(name: .shortAndLong, help: "Output file path")
+    var output: String?
+    
+    @Flag(help: "Pretty-print JSON output")
+    var pretty: Bool = false
+    
+    @Flag(help: "Show query statistics")
+    var stats: Bool = false
+    
+    @Flag(help: "Output in AI-optimized format")
+    var ai: Bool = false
+    
+    @Option(name: .shortAndLong, help: "Window index to query (default: all windows)")
+    var window: Int?
+    
+    @Option(help: "Maximum number of elements to dump (default: 5000)")
+    var maxElements: Int = 5000
+    
+    func run() throws {
+        try checkPermissions()
+        let bundleId = try resolveAppIdentifier(appIdentifier)
+        
+        print("🐛 Debug dumping elements from \(appIdentifier) (minimal filtering)")
+        
+        // Execute debug dump
+        let elements: [AXElement]
+        if let windowIndex = window {
+            elements = try AXDumper.debugDumpWindow(
+                bundleIdentifier: bundleId,
+                windowIndex: windowIndex,
+                maxElements: maxElements
+            )
+        } else {
+            elements = try AXDumper.debugDump(
+                bundleIdentifier: bundleId,
+                maxElements: maxElements
+            )
+        }
+        
+        // Convert to JSON (flat array, no hierarchical structure)
+        let jsonOutput: String
+        if ai {
+            jsonOutput = try convertToAIFormat(elements: elements, pretty: pretty)
+        } else {
+            let encoder = JSONEncoder()
+            if pretty {
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            } else {
+                encoder.outputFormatting = []
+            }
+            
+            let jsonData = try encoder.encode(elements)
+            jsonOutput = String(data: jsonData, encoding: .utf8)!
+        }
+        
+        // Output
+        if let outputFile = output {
+            try writeToFile(jsonOutput, path: outputFile)
+            print("✅ Debug results saved to: \(outputFile)")
+        } else {
+            print(jsonOutput)
+        }
+        
+        // Statistics
+        if stats {
+            print("\n📊 Debug Dump Results:")
             print("   Elements found: \(elements.count)")
             print("   JSON size: \(formatBytes(jsonOutput.count))")
             

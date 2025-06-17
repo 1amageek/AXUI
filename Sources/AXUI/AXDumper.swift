@@ -160,7 +160,7 @@ public struct AXDumper {
     // MARK: - Flat Dumping Methods
     
     /// Dump AX elements as a flat array with optional query filtering
-    public static func dump(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 300) throws -> [AXElement] {
+    public static func dump(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 5000) throws -> [AXElement] {
         // Check accessibility permissions first
         guard checkAccessibilityPermissions() else {
             throw AXDumperError.accessibilityPermissionDenied
@@ -184,7 +184,7 @@ public struct AXDumper {
     }
     
     /// Dump AX elements for a specific window as a flat array
-    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 300) throws -> [AXElement] {
+    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 5000) throws -> [AXElement] {
         let windows = try listWindows(bundleIdentifier: bundleIdentifier)
         
         guard windowIndex >= 0 && windowIndex < windows.count else {
@@ -203,13 +203,56 @@ public struct AXDumper {
     }
     
     /// Query elements with a specific query
-    public static func queryElements(bundleIdentifier: String, query: AXQuery, maxElements: Int = 300) throws -> [AXElement] {
+    public static func queryElements(bundleIdentifier: String, query: AXQuery, maxElements: Int = 5000) throws -> [AXElement] {
         return try dump(bundleIdentifier: bundleIdentifier, query: query, maxElements: maxElements)
     }
     
     /// Query elements in a specific window
-    public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery, maxElements: Int = 300) throws -> [AXElement] {
+    public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery, maxElements: Int = 5000) throws -> [AXElement] {
         return try dumpWindow(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query, maxElements: maxElements)
+    }
+    
+    /// Debug dump with absolutely no filtering - includes all elements including Groups and zero-size elements
+    public static func debugDump(bundleIdentifier: String, maxElements: Int = 50000) throws -> [AXElement] {
+        // Check accessibility permissions first
+        guard checkAccessibilityPermissions() else {
+            throw AXDumperError.accessibilityPermissionDenied
+        }
+        
+        let runningApps = NSWorkspace.shared.runningApplications
+        guard let targetApp = runningApps.first(where: { $0.bundleIdentifier == bundleIdentifier }) else {
+            throw AXDumperError.applicationNotFound(bundleIdentifier)
+        }
+        
+        let pid = targetApp.processIdentifier
+        let appElement = AXUIElementCreateApplication(pid)
+        
+        var elements: [AXElement] = []
+        var elementCount = 0
+        
+        // Build flat array of elements with NO filtering whatsoever
+        try flattenElementDebug(appElement, elements: &elements, elementCount: &elementCount, maxElements: maxElements)
+        
+        return elements
+    }
+    
+    /// Debug dump for a specific window with no filtering
+    public static func debugDumpWindow(bundleIdentifier: String, windowIndex: Int, maxElements: Int = 50000) throws -> [AXElement] {
+        let windows = try listWindows(bundleIdentifier: bundleIdentifier)
+        
+        guard windowIndex >= 0 && windowIndex < windows.count else {
+            throw AXDumperError.windowNotFound(windowIndex, windows.count)
+        }
+        
+        let window = windows[windowIndex]
+        
+        var elements: [AXElement] = []
+        var elementCount = 0
+        
+        // Build flat array of elements starting from window with NO filtering
+        try flattenElementDebug(window.element, elements: &elements, elementCount: &elementCount, maxElements: maxElements)
+        
+        return elements
     }
     
     // MARK: - Private Flattening Implementation
@@ -427,7 +470,9 @@ public struct AXDumper {
                     for child in children {
                         try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
                         // Stop if we've reached the limit
-                        if elements.count >= maxElements { return }
+                        if elements.count >= maxElements { 
+                            throw AXDumperError.tooManyElements(elements.count, maxElements)
+                        }
                     }
                 }
                 return
@@ -470,7 +515,9 @@ public struct AXDumper {
                 for child in children {
                     try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
                     // Stop if we've reached the limit
-                    if elements.count >= maxElements { return }
+                    if elements.count >= maxElements { 
+                        throw AXDumperError.tooManyElements(elements.count, maxElements)
+                    }
                 }
             }
             return
@@ -488,7 +535,9 @@ public struct AXDumper {
             for child in children {
                 try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
                 // Stop if we've reached the limit
-                if elements.count >= maxElements { return }
+                if elements.count >= maxElements { 
+                    throw AXDumperError.tooManyElements(elements.count, maxElements)
+                }
             }
             return
         }
@@ -524,14 +573,114 @@ public struct AXDumper {
         if shouldInclude {
             elements.append(axElement)
             // Stop if we've reached the limit
-            if elements.count >= maxElements { return }
+            if elements.count >= maxElements { 
+                throw AXDumperError.tooManyElements(elements.count, maxElements)
+            }
         }
         
         // Process children for flattening (separate from structure children)
         for child in children {
             try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
             // Stop if we've reached the limit
-            if elements.count >= maxElements { return }
+            if elements.count >= maxElements { 
+                throw AXDumperError.tooManyElements(elements.count, maxElements)
+            }
+        }
+    }
+    
+    /// Debug version of flatten element with NO filtering whatsoever
+    private static func flattenElementDebug(
+        _ element: AXUIElement,
+        elements: inout [AXElement],
+        elementCount: inout Int,
+        maxElements: Int
+    ) throws {
+        
+        // Check element count limit before processing
+        elementCount += 1
+        if elementCount > maxElements {
+            throw AXDumperError.tooManyElements(elementCount, maxElements)
+        }
+        
+        // Get ALL element properties without any filtering
+        let role = getStringProperty(element, kAXRoleAttribute)
+        let description = getStringProperty(element, kAXDescriptionAttribute)
+        let identifier = getStringProperty(element, kAXIdentifierAttribute)
+        let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute)
+        let help = getStringProperty(element, kAXHelpAttribute)
+        let position = getPositionProperty(element)
+        let size = getSizeProperty(element)
+        let selected = getBoolProperty(element, kAXSelectedAttribute) ?? false
+        let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
+        let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
+        
+        // Convert position and size to safe values
+        let safePosition: Point? = {
+            guard let position = position else { return nil }
+            return Point(
+                x: safeDoubleConversion(position.x),
+                y: safeDoubleConversion(position.y)
+            )
+        }()
+        
+        let safeSize: Size? = {
+            guard let size = size else { return nil }
+            return Size(
+                width: safeDoubleConversion(size.width),
+                height: safeDoubleConversion(size.height)
+            )
+        }()
+        
+        // Get children for processing
+        let children = getChildrenProperty(element) ?? []
+        
+        // Normalize role (remove AX prefix)
+        let normalizedRole = normalizeRole(role)?.normalized
+        
+        // Skip Group elements but process their children
+        if normalizedRole == .group {
+            // Process children but don't include the Group itself
+            for child in children {
+                try flattenElementDebug(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements)
+                // Stop if we've reached the limit
+                if elements.count >= maxElements { 
+                    throw AXDumperError.tooManyElements(elements.count, maxElements)
+                }
+            }
+            return
+        }
+        
+        // Create element - INCLUDE ALL ELEMENTS except Groups, including zero-size
+        let axElement = AXElement(
+            role: normalizedRole,
+            description: description,
+            identifier: identifier,
+            roleDescription: roleDescription,
+            help: help,
+            position: safePosition,
+            size: safeSize,
+            selected: selected,
+            enabled: enabled,
+            focused: focused,
+            children: nil, // Keep it flat for debug dump
+            axElementRef: element
+        )
+        
+        // Add ALL elements to array (no filtering)
+        elements.append(axElement)
+        
+        // Stop if we've reached the limit
+        if elements.count >= maxElements { 
+            throw AXDumperError.tooManyElements(elements.count, maxElements)
+        }
+        
+        // Process ALL children recursively
+        for child in children {
+            try flattenElementDebug(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements)
+            // Stop if we've reached the limit
+            if elements.count >= maxElements { 
+                throw AXDumperError.tooManyElements(elements.count, maxElements)
+            }
         }
     }
 }

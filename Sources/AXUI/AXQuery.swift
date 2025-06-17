@@ -178,10 +178,13 @@ extension AXQuery {
     /// Format: "key=value,key2=value2" or "key~=regex"
     public static func parse(_ queryString: String) -> AXQuery? {
         var query = AXQuery()
+        var subQueries: [Box<AXQuery>] = []
         
         let pairs = queryString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         
         for pair in pairs {
+            var subQuery = AXQuery()
+            
             if pair.contains("~=") {
                 // Regex match
                 let parts = pair.split(separator: "~", maxSplits: 1).map { String($0) }
@@ -191,11 +194,11 @@ extension AXQuery {
                 
                 switch key {
                 case "description":
-                    query.descriptionRegex = value
+                    subQuery.descriptionRegex = value
                 case "identifier":
-                    query.identifierRegex = value
+                    subQuery.identifierRegex = value
                 default:
-                    break
+                    continue
                 }
             } else if pair.contains("*=") {
                 // Contains match
@@ -206,11 +209,11 @@ extension AXQuery {
                 
                 switch key {
                 case "description":
-                    query.descriptionContains = value
+                    subQuery.descriptionContains = value
                 case "identifier":
-                    query.identifierContains = value
+                    subQuery.identifierContains = value
                 default:
-                    break
+                    continue
                 }
             } else {
                 // Handle comparison operators
@@ -220,25 +223,11 @@ extension AXQuery {
                 var valuePart: String?
                 
                 for op in operators {
-                    if pair.contains(op) {
-                        let parts = pair.split(separator: Character(extendedGraphemeClusterLiteral: op.first!), maxSplits: 1).map { String($0) }
-                        if parts.count == 2 {
-                            keyPart = parts[0]
-                            if op.count == 2 {
-                                // Handle two-character operators (>=, <=, !=)
-                                let remainingPart = parts[1]
-                                if remainingPart.hasPrefix(String(op.dropFirst())) {
-                                    valuePart = String(remainingPart.dropFirst())
-                                    operatorFound = op
-                                    break
-                                }
-                            } else {
-                                // Handle single-character operators (>, <, =)
-                                valuePart = parts[1]
-                                operatorFound = op
-                                break
-                            }
-                        }
+                    if let range = pair.range(of: op) {
+                        keyPart = String(pair[..<range.lowerBound])
+                        valuePart = String(pair[range.upperBound...])
+                        operatorFound = op
+                        break
                     }
                 }
                 
@@ -247,27 +236,34 @@ extension AXQuery {
                 switch key {
                 case "role":
                     if let role = Role(rawValue: String(value)) {
-                        var roleQuery = query.roleQuery ?? RoleQuery()
+                        var roleQuery = RoleQuery()
                         switch op {
                         case "=": roleQuery.equals = role
                         case "!=": roleQuery.notEquals = role
-                        default: break
+                        default: continue
                         }
-                        query.roleQuery = roleQuery
+                        subQuery.roleQuery = roleQuery
+                    } else {
+                        continue
                     }
                 case "description":
-                    if op == "=" { query.description = String(value) }
+                    if op == "=" { subQuery.description = String(value) }
+                    else { continue }
                 case "identifier":
-                    if op == "=" { query.identifier = String(value) }
+                    if op == "=" { subQuery.identifier = String(value) }
+                    else { continue }
                 case "selected":
-                    if op == "=" { query.selected = value == "true" }
+                    if op == "=" { subQuery.selected = value == "true" }
+                    else { continue }
                 case "enabled":
-                    if op == "=" { query.enabled = value == "true" }
+                    if op == "=" { subQuery.enabled = value == "true" }
+                    else { continue }
                 case "focused":
-                    if op == "=" { query.focused = value == "true" }
+                    if op == "=" { subQuery.focused = value == "true" }
+                    else { continue }
                 case "x":
                     if let doubleValue = Double(value) {
-                        var xQuery = query.x ?? ComparisonQuery<Double>()
+                        var xQuery = ComparisonQuery<Double>()
                         switch op {
                         case "=": xQuery.equals = doubleValue
                         case "!=": xQuery.notEquals = doubleValue
@@ -275,13 +271,15 @@ extension AXQuery {
                         case "<=": xQuery.lessThanOrEqual = doubleValue
                         case ">": xQuery.greaterThan = doubleValue
                         case "<": xQuery.lessThan = doubleValue
-                        default: break
+                        default: continue
                         }
-                        query.x = xQuery
+                        subQuery.x = xQuery
+                    } else {
+                        continue
                     }
                 case "y":
                     if let doubleValue = Double(value) {
-                        var yQuery = query.y ?? ComparisonQuery<Double>()
+                        var yQuery = ComparisonQuery<Double>()
                         switch op {
                         case "=": yQuery.equals = doubleValue
                         case "!=": yQuery.notEquals = doubleValue
@@ -289,13 +287,15 @@ extension AXQuery {
                         case "<=": yQuery.lessThanOrEqual = doubleValue
                         case ">": yQuery.greaterThan = doubleValue
                         case "<": yQuery.lessThan = doubleValue
-                        default: break
+                        default: continue
                         }
-                        query.y = yQuery
+                        subQuery.y = yQuery
+                    } else {
+                        continue
                     }
                 case "width":
                     if let doubleValue = Double(value) {
-                        var widthQuery = query.width ?? ComparisonQuery<Double>()
+                        var widthQuery = ComparisonQuery<Double>()
                         switch op {
                         case "=": widthQuery.equals = doubleValue
                         case "!=": widthQuery.notEquals = doubleValue
@@ -303,13 +303,15 @@ extension AXQuery {
                         case "<=": widthQuery.lessThanOrEqual = doubleValue
                         case ">": widthQuery.greaterThan = doubleValue
                         case "<": widthQuery.lessThan = doubleValue
-                        default: break
+                        default: continue
                         }
-                        query.width = widthQuery
+                        subQuery.width = widthQuery
+                    } else {
+                        continue
                     }
                 case "height":
                     if let doubleValue = Double(value) {
-                        var heightQuery = query.height ?? ComparisonQuery<Double>()
+                        var heightQuery = ComparisonQuery<Double>()
                         switch op {
                         case "=": heightQuery.equals = doubleValue
                         case "!=": heightQuery.notEquals = doubleValue
@@ -317,17 +319,28 @@ extension AXQuery {
                         case "<=": heightQuery.lessThanOrEqual = doubleValue
                         case ">": heightQuery.greaterThan = doubleValue
                         case "<": heightQuery.lessThan = doubleValue
-                        default: break
+                        default: continue
                         }
-                        query.height = heightQuery
+                        subQuery.height = heightQuery
+                    } else {
+                        continue
                     }
                 default:
-                    break
+                    continue
                 }
             }
+            
+            subQueries.append(Box(subQuery))
         }
         
-        return query
+        if subQueries.count == 1 {
+            return subQueries[0].value
+        } else if subQueries.count > 1 {
+            query.andQueries = subQueries
+            return query
+        }
+        
+        return nil
     }
 }
 

@@ -64,6 +64,9 @@ import Foundation
     } catch AXDumperError.accessibilityPermissionDenied {
         #expect(!initialPermissions) // Should only get this error if no permissions
         print("✅ Correctly threw permission denied error")
+    } catch AXDumperError.tooManyElements(let found, let limit) {
+        #expect(initialPermissions) // Should only get this error if we have permissions
+        print("✅ Correctly threw too many elements error: \(found) elements found, limit \(limit)")
     } catch {
         throw error // Re-throw unexpected errors
     }
@@ -74,6 +77,7 @@ import Foundation
     let appNotFoundError = AXDumperError.applicationNotFound("com.nonexistent.app")
     let noFrontmostError = AXDumperError.noFrontmostApp
     let noBundleIdError = AXDumperError.noBundleIdentifier
+    let tooManyElementsError = AXDumperError.tooManyElements(500, 300)
     
     // Test that error descriptions are helpful
     #expect(permissionError.errorDescription?.contains("Accessibility permission") == true)
@@ -84,6 +88,11 @@ import Foundation
     
     #expect(noFrontmostError.errorDescription?.contains("frontmost") == true)
     #expect(noBundleIdError.errorDescription?.contains("bundle identifier") == true)
+    
+    #expect(tooManyElementsError.errorDescription?.contains("Too many UI elements") == true)
+    #expect(tooManyElementsError.errorDescription?.contains("500 exceeds limit of 300") == true)
+    #expect(tooManyElementsError.errorDescription?.contains("AXQuery") == true)
+    #expect(tooManyElementsError.errorDescription?.contains("token consumption") == true)
     
     print("✅ All error messages are descriptive and helpful")
 }

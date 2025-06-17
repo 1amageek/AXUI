@@ -160,7 +160,7 @@ public struct AXDumper {
     // MARK: - Flat Dumping Methods
     
     /// Dump AX elements as a flat array with optional query filtering
-    public static func dump(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
+    public static func dump(bundleIdentifier: String, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 300) throws -> [AXElement] {
         // Check accessibility permissions first
         guard checkAccessibilityPermissions() else {
             throw AXDumperError.accessibilityPermissionDenied
@@ -175,9 +175,10 @@ public struct AXDumper {
         let appElement = AXUIElementCreateApplication(pid)
         
         var elements: [AXElement] = []
+        var elementCount = 0
         
         // Build flat array of elements
-        flattenElement(appElement, elements: &elements, includeZeroSize: includeZeroSize)
+        try flattenElement(appElement, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
         
         // Apply query filter if provided
         if let query = query {
@@ -188,7 +189,7 @@ public struct AXDumper {
     }
     
     /// Dump AX elements for a specific window as a flat array
-    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false) throws -> [AXElement] {
+    public static func dumpWindow(bundleIdentifier: String, windowIndex: Int, query: AXQuery? = nil, includeZeroSize: Bool = false, maxElements: Int = 300) throws -> [AXElement] {
         let windows = try listWindows(bundleIdentifier: bundleIdentifier)
         
         guard windowIndex >= 0 && windowIndex < windows.count else {
@@ -198,9 +199,10 @@ public struct AXDumper {
         let window = windows[windowIndex]
         
         var elements: [AXElement] = []
+        var elementCount = 0
         
         // Build flat array of elements starting from window
-        flattenElement(window.element, elements: &elements, includeZeroSize: includeZeroSize)
+        try flattenElement(window.element, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
         
         // Apply query filter if provided
         if let query = query {
@@ -211,13 +213,13 @@ public struct AXDumper {
     }
     
     /// Query elements with a specific query
-    public static func queryElements(bundleIdentifier: String, query: AXQuery) throws -> [AXElement] {
-        return try dump(bundleIdentifier: bundleIdentifier, query: query)
+    public static func queryElements(bundleIdentifier: String, query: AXQuery, maxElements: Int = 300) throws -> [AXElement] {
+        return try dump(bundleIdentifier: bundleIdentifier, query: query, maxElements: maxElements)
     }
     
     /// Query elements in a specific window
-    public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery) throws -> [AXElement] {
-        return try dumpWindow(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query)
+    public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery, maxElements: Int = 300) throws -> [AXElement] {
+        return try dumpWindow(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query, maxElements: maxElements)
     }
     
     // MARK: - Private Flattening Implementation
@@ -225,8 +227,10 @@ public struct AXDumper {
     private static func flattenElement(
         _ element: AXUIElement,
         elements: inout [AXElement],
+        elementCount: inout Int,
+        maxElements: Int,
         includeZeroSize: Bool = false
-    ) {
+    ) throws {
         
         // Get size first to check if we should skip this element
         let size = getSizeProperty(element)
@@ -237,7 +241,7 @@ public struct AXDumper {
                 // Skip this element but still process its children
                 if let children = getChildrenProperty(element) {
                     for child in children {
-                        flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
+                        try flattenElement(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
                     }
                 }
                 return
@@ -278,6 +282,12 @@ public struct AXDumper {
             return
         }
         
+        // Check element count limit before processing
+        elementCount += 1
+        if elementCount > maxElements {
+            throw AXDumperError.tooManyElements(elementCount, maxElements)
+        }
+        
         // Get children for processing
         let children = getChildrenProperty(element) ?? []
         
@@ -288,7 +298,7 @@ public struct AXDumper {
         if normalizedRole == .group {
             // Process children but don't include the Group itself
             for child in children {
-                flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
+                try flattenElement(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
             }
             return
         }
@@ -318,7 +328,7 @@ public struct AXDumper {
         
         // Process children for flattening (separate from structure children)
         for child in children {
-            flattenElement(child, elements: &elements, includeZeroSize: includeZeroSize)
+            try flattenElement(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
         }
     }
     
@@ -415,6 +425,7 @@ public enum AXDumperError: Error, LocalizedError, Equatable {
     case noBundleIdentifier
     case accessibilityPermissionDenied
     case windowNotFound(Int, Int)
+    case tooManyElements(Int, Int)
     
     public var errorDescription: String? {
         switch self {
@@ -428,6 +439,8 @@ public enum AXDumperError: Error, LocalizedError, Equatable {
             return "Accessibility permission denied. Please enable accessibility access for this application in System Preferences."
         case .windowNotFound(let index, let total):
             return "Window index \(index) not found. Application has \(total) window(s)."
+        case .tooManyElements(let found, let limit):
+            return "Too many UI elements (\(found) exceeds limit of \(limit)). Use AXQuery to filter elements and retrieve only what you need to avoid excessive token consumption."
         }
     }
 }

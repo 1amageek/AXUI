@@ -177,13 +177,8 @@ public struct AXDumper {
         var elements: [AXElement] = []
         var elementCount = 0
         
-        // Build flat array of elements
-        try flattenElement(appElement, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
-        
-        // Apply query filter if provided
-        if let query = query {
-            return AXQueryMatcher.filter(elements: elements, query: query)
-        }
+        // Build flat array of elements with filtering during traversal
+        try flattenElementWithFilter(appElement, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
         
         return elements
     }
@@ -201,13 +196,8 @@ public struct AXDumper {
         var elements: [AXElement] = []
         var elementCount = 0
         
-        // Build flat array of elements starting from window
-        try flattenElement(window.element, elements: &elements, elementCount: &elementCount, maxElements: maxElements, includeZeroSize: includeZeroSize)
-        
-        // Apply query filter if provided
-        if let query = query {
-            return AXQueryMatcher.filter(elements: elements, query: query)
-        }
+        // Build flat array of elements starting from window with filtering during traversal
+        try flattenElementWithFilter(window.element, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
         
         return elements
     }
@@ -414,6 +404,135 @@ public struct AXDumper {
             children: nil, // Child elements don't include their own children
             axElementRef: element
         )
+    }
+    
+    /// Flatten elements with filtering during traversal for better performance
+    private static func flattenElementWithFilter(
+        _ element: AXUIElement,
+        elements: inout [AXElement],
+        elementCount: inout Int,
+        maxElements: Int,
+        query: AXQuery?,
+        includeZeroSize: Bool = false
+    ) throws {
+        
+        // Get size first to check if we should skip this element
+        let size = getSizeProperty(element)
+        
+        // Default behavior: exclude zero-size elements unless explicitly requested
+        if !includeZeroSize {
+            if let size = size, (size.width == 0 || size.height == 0) {
+                // Skip this element but still process its children
+                if let children = getChildrenProperty(element) {
+                    for child in children {
+                        try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
+                        // Stop if we've reached the limit
+                        if elements.count >= maxElements { return }
+                    }
+                }
+                return
+            }
+        }
+        
+        // Get element properties
+        let role = getStringProperty(element, kAXRoleAttribute)
+        let description = getStringProperty(element, kAXDescriptionAttribute)
+        let identifier = getStringProperty(element, kAXIdentifierAttribute)
+        let roleDescription = getStringProperty(element, kAXRoleDescriptionAttribute)
+        let help = getStringProperty(element, kAXHelpAttribute)
+        let position = getPositionProperty(element)
+        // Size already obtained above for zero-size check
+        let selected = getBoolProperty(element, kAXSelectedAttribute) ?? false
+        let enabled = getBoolProperty(element, kAXEnabledAttribute) ?? true
+        let focused = getBoolProperty(element, kAXFocusedAttribute) ?? false
+        
+        // Convert position and size to safe values
+        let safePosition: Point? = {
+            guard let position = position else { return nil }
+            return Point(
+                x: safeDoubleConversion(position.x),
+                y: safeDoubleConversion(position.y)
+            )
+        }()
+        
+        let safeSize: Size? = {
+            guard let size = size else { return nil }
+            return Size(
+                width: safeDoubleConversion(size.width),
+                height: safeDoubleConversion(size.height)
+            )
+        }()
+        
+        // Skip elements without meaningful content (no role, description, identifier, or roleDescription)
+        if role == nil && description == nil && identifier == nil && roleDescription == nil {
+            // Still process children
+            if let children = getChildrenProperty(element) {
+                for child in children {
+                    try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
+                    // Stop if we've reached the limit
+                    if elements.count >= maxElements { return }
+                }
+            }
+            return
+        }
+        
+        // Get children for processing
+        let children = getChildrenProperty(element) ?? []
+        
+        // Normalize role (remove AX prefix)
+        let normalizedRole = normalizeRole(role)?.normalized
+        
+        // Skip Group elements as they have no meaning in this program
+        if normalizedRole == .group {
+            // Process children but don't include the Group itself
+            for child in children {
+                try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
+                // Stop if we've reached the limit
+                if elements.count >= maxElements { return }
+            }
+            return
+        }
+        
+        // Determine if this element should include children structure
+        let shouldIncludeChildren = normalizedRole?.isInteractive ?? false
+        let childElements: [AXElement] = shouldIncludeChildren ? createChildElements(children) : []
+        
+        // Create element with children if applicable
+        let axElement = AXElement(
+            role: normalizedRole,
+            description: description,
+            identifier: identifier,
+            roleDescription: roleDescription,
+            help: help,
+            position: safePosition,
+            size: safeSize,
+            selected: selected,
+            enabled: enabled,
+            focused: focused,
+            children: childElements.isEmpty ? nil : childElements,
+            axElementRef: element
+        )
+        
+        // Apply query filter if provided
+        let shouldInclude = if let query = query {
+            AXQueryMatcher.matches(element: axElement, query: query, allElements: elements)
+        } else {
+            true
+        }
+        
+        // Add to array if it matches the query
+        if shouldInclude {
+            elements.append(axElement)
+            // Stop if we've reached the limit
+            if elements.count >= maxElements { return }
+        }
+        
+        // Process children for flattening (separate from structure children)
+        for child in children {
+            try flattenElementWithFilter(child, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
+            // Stop if we've reached the limit
+            if elements.count >= maxElements { return }
+        }
     }
 }
 

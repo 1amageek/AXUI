@@ -46,12 +46,27 @@ public struct ComparisonQuery<T: Comparable & Codable & Sendable>: Codable, Send
     }
 }
 
+// MARK: - Role Query (Specialized for enum matching)
+
+public struct RoleQuery: Codable, Sendable {
+    public var equals: Role?
+    public var notEquals: Role?
+    
+    public init() {}
+    
+    public func matches(_ value: Role) -> Bool {
+        if let eq = equals, value != eq { return false }
+        if let neq = notEquals, value == neq { return false }
+        return true
+    }
+}
+
 // MARK: - AX Query System
 
 /// A flexible query structure for matching UI elements based on multiple conditions
 public struct AXQuery: Sendable {
     // Basic properties
-    public var role: Role?
+    public var roleQuery: RoleQuery?
     public var description: String?
     public var identifier: String?
     public var roleDescription: String?
@@ -105,7 +120,9 @@ extension AXQuery {
     /// Create a query for buttons
     public static func button(description: String? = nil) -> AXQuery {
         var query = AXQuery()
-        query.role = .button
+        var roleQuery = RoleQuery()
+        roleQuery.equals = .button
+        query.roleQuery = roleQuery
         query.description = description
         return query
     }
@@ -113,7 +130,9 @@ extension AXQuery {
     /// Create a query for text fields
     public static func textField(identifier: String? = nil) -> AXQuery {
         var query = AXQuery()
-        query.role = .field
+        var roleQuery = RoleQuery()
+        roleQuery.equals = .field
+        query.roleQuery = roleQuery
         query.identifier = identifier
         return query
     }
@@ -121,36 +140,19 @@ extension AXQuery {
     /// Create a query for interactive elements
     public static func interactive() -> AXQuery {
         var query = AXQuery()
-        var buttonQuery = AXQuery()
-        buttonQuery.role = .button
-        var fieldQuery = AXQuery()
-        fieldQuery.role = .field
-        var checkQuery = AXQuery()
-        checkQuery.role = .check
-        var radioQuery = AXQuery()
-        radioQuery.role = .radio
-        var sliderQuery = AXQuery()
-        sliderQuery.role = .slider
-        var popupQuery = AXQuery()
-        popupQuery.role = .popUp
-        var tabQuery = AXQuery()
-        tabQuery.role = .tabGroup
-        var menuQuery = AXQuery()
-        menuQuery.role = .menuItem
-        var linkQuery = AXQuery()
-        linkQuery.role = .link
         
-        query.orQueries = [
-            Box(buttonQuery),
-            Box(fieldQuery),
-            Box(checkQuery),
-            Box(radioQuery),
-            Box(sliderQuery),
-            Box(popupQuery),
-            Box(tabQuery),
-            Box(menuQuery),
-            Box(linkQuery)
-        ]
+        let roles: [Role] = [.button, .field, .check, .radio, .slider, .popUp, .tabGroup, .menuItem, .link]
+        var subQueries: [Box<AXQuery>] = []
+        
+        for role in roles {
+            var subQuery = AXQuery()
+            var roleQuery = RoleQuery()
+            roleQuery.equals = role
+            subQuery.roleQuery = roleQuery
+            subQueries.append(Box(subQuery))
+        }
+        
+        query.orQueries = subQueries
         return query
     }
     
@@ -244,7 +246,15 @@ extension AXQuery {
                 
                 switch key {
                 case "role":
-                    if op == "=" { query.role = Role(rawValue: String(value)) }
+                    if let role = Role(rawValue: String(value)) {
+                        var roleQuery = query.roleQuery ?? RoleQuery()
+                        switch op {
+                        case "=": roleQuery.equals = role
+                        case "!=": roleQuery.notEquals = role
+                        default: break
+                        }
+                        query.roleQuery = roleQuery
+                    }
                 case "description":
                     if op == "=" { query.description = String(value) }
                 case "identifier":

@@ -2,7 +2,7 @@ import Foundation
 
 /// Accessibility element roles based on NSAccessibility constants
 /// All roles follow the project convention of removing "AX" prefixes
-public enum Role: String, Codable, CaseIterable, Sendable {
+public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     // Application and system
     case application = "Application"
     case systemWide = "SystemWide"
@@ -437,5 +437,12 @@ public enum Role: String, Codable, CaseIterable, Sendable {
         default:
             return self
         }
+    }
+    
+    // MARK: - Comparable
+    
+    /// Compare roles by their raw string values for consistent ordering
+    public static func < (lhs: Role, rhs: Role) -> Bool {
+        return lhs.rawValue < rhs.rawValue
     }
 }

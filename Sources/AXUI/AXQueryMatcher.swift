@@ -20,8 +20,9 @@ public struct AXQueryMatcher {
         }
         
         // Basic property matching
-        if let role = query.role {
-            if element.role != role { return false }
+        if let roleQuery = query.roleQuery {
+            guard let elementRole = element.role else { return false }
+            if !roleQuery.matches(elementRole) { return false }
         }
         
         if let description = query.description {

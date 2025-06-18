@@ -325,7 +325,7 @@ public struct AXDumper {
         let children = getChildrenProperty(element) ?? []
         
         // Normalize role (remove AX prefix)
-        let normalizedRole = normalizeRole(role)?.normalized
+        let normalizedRole = normalizeRole(role)
         
         // Skip Group elements as they have no meaning in this program
         if normalizedRole == .group {
@@ -365,11 +365,11 @@ public struct AXDumper {
         }
     }
     
-    internal static func normalizeRole(_ role: String?) -> Role? {
+    internal static func normalizeRole(_ role: String?) -> SystemRole? {
         guard let role = role else { return nil }
         
         let cleanRole = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
-        return Role(rawValue: cleanRole)
+        return SystemRole(rawValue: cleanRole)
     }
     
     
@@ -379,7 +379,7 @@ public struct AXDumper {
         
         for element in elements {
             let role = getStringProperty(element, kAXRoleAttribute)
-            let normalizedRole = normalizeRole(role)?.normalized
+            let normalizedRole = normalizeRole(role)
             
             // If it's a Group, get its children instead of the Group itself
             if normalizedRole == .group {
@@ -415,7 +415,7 @@ public struct AXDumper {
             return nil
         }
         
-        let normalizedRole = normalizeRole(role)?.normalized
+        let normalizedRole = normalizeRole(role)
         
         let safePosition: Point? = {
             guard let position = position else { return nil }
@@ -527,7 +527,7 @@ public struct AXDumper {
         let children = getChildrenProperty(element) ?? []
         
         // Normalize role (remove AX prefix)
-        let normalizedRole = normalizeRole(role)?.normalized
+        let normalizedRole = normalizeRole(role)
         
         // Skip Group elements as they have no meaning in this program
         if normalizedRole == .group {
@@ -635,7 +635,7 @@ public struct AXDumper {
         let children = getChildrenProperty(element) ?? []
         
         // Normalize role (remove AX prefix)
-        let normalizedRole = normalizeRole(role)?.normalized
+        let normalizedRole = normalizeRole(role)
         
         // Skip Group elements but process their children
         if normalizedRole == .group {

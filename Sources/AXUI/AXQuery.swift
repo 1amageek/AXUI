@@ -141,7 +141,7 @@ extension AXQuery {
     public static func interactive() -> AXQuery {
         var query = AXQuery()
         
-        let roles: [Role] = [.button, .field, .check, .radio, .slider, .popUp, .tabGroup, .menuItem, .link]
+        let roles: [Role] = [.button, .field, .check, .radio, .slider, .popUp, .link]
         var subQueries: [Box<AXQuery>] = []
         
         for role in roles {

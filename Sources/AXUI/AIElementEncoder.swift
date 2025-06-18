@@ -55,7 +55,7 @@ public final class AIElementEncoder: Sendable {
         let id = axElement.id
         
         // Normalize role (remove AX prefix if present)
-        let normalizedRole = axElement.role?.normalized.rawValue
+        let normalizedRole = axElement.role?.generic.rawValue
         
         // Map description to value for AI clarity
         let value = axElement.description
@@ -86,7 +86,7 @@ public final class AIElementEncoder: Sendable {
         
         return AIElement(
             id: id,
-            role: axElement.role?.normalized,
+            role: axElement.role?.generic,
             value: value,
             desc: desc,
             bounds: bounds,

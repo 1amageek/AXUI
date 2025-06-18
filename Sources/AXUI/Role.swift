@@ -1,8 +1,9 @@
 import Foundation
 
-/// Accessibility element roles based on NSAccessibility constants
+/// System-level accessibility element roles based on NSAccessibility constants
 /// All roles follow the project convention of removing "AX" prefixes
-public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
+/// This enum represents the exact roles as returned by the accessibility API
+internal enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     // Application and system
     case application = "Application"
     case systemWide = "SystemWide"
@@ -101,16 +102,16 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     case generic = "Generic"     // Normalized from GenericElement
     
     /// Initialize from raw string value, handling both prefixed and non-prefixed formats
-    public init?(rawValue: String) {
+    internal init?(rawValue: String) {
         // Try direct match first
-        if let role = Role.allCases.first(where: { $0.rawValue == rawValue }) {
+        if let role = SystemRole.allCases.first(where: { $0.rawValue == rawValue }) {
             self = role
             return
         }
         
         // Try with AX prefix removed
         let cleanValue = rawValue.hasPrefix("AX") ? String(rawValue.dropFirst(2)) : rawValue
-        if let role = Role.allCases.first(where: { $0.rawValue == cleanValue }) {
+        if let role = SystemRole.allCases.first(where: { $0.rawValue == cleanValue }) {
             self = role
             return
         }
@@ -259,7 +260,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Get display name for UI
-    public var displayName: String {
+    internal var displayName: String {
         switch self {
         case .systemWide:
             return "System Wide"
@@ -337,7 +338,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents an interactive element
-    public var isInteractive: Bool {
+    internal var isInteractive: Bool {
         switch self {
         case .button, .popUpButton, .menuButton, .checkBox, .radioButton,
              .slider, .incrementor, .comboBox, .disclosureTriangle,
@@ -350,7 +351,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents a container element
-    public var isContainer: Bool {
+    internal var isContainer: Bool {
         switch self {
         case .group, .radioGroup, .list, .scrollArea, .splitGroup,
              .table, .outline, .browser, .tabGroup, .row, .column,
@@ -364,7 +365,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents a text element
-    public var isText: Bool {
+    internal var isText: Bool {
         switch self {
         case .textField, .textArea, .staticText, .headingRole,
              .text, .field:
@@ -375,7 +376,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Convert to the normalized role used in this project
-    public var normalized: Role {
+    internal var normalized: SystemRole {
         switch self {
         case .staticText:
             return .text
@@ -439,7 +440,236 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
         }
     }
     
-    // MARK: - Comparable
+    /// Convert to the user-friendly generic role
+    internal var generic: Role {
+        switch self {
+        case .staticText:
+            return .text
+        case .scrollArea:
+            return .scroll
+        case .textField, .textArea:
+            return .field
+        case .checkBox:
+            return .check
+        case .radioButton:
+            return .radio
+        case .popUpButton:
+            return .popUp
+        case .menuButton, .incrementor, .disclosureTriangle:
+            return .button
+        case .tabGroup, .radioGroup, .toolbar, .menuBar, .layoutArea, .layoutItem, .webAreaRole, .pageRole, .matte, .splitGroup:
+            return .group
+        case .scrollBar:
+            return .scroll
+        case .headingRole, .listMarkerRole, .helpTag:
+            return .text
+        case .busyIndicator, .progressIndicator, .levelIndicator, .valueIndicator, .growArea, .handle, .splitter, .ruler, .rulerMarker:
+            return .generic
+        // Already generic roles - pass through
+        case .text, .scroll, .field, .check, .radio, .popUp, .generic:
+            return Role(rawValue: self.rawValue) ?? .generic
+        default:
+            return Role(rawValue: self.rawValue) ?? .generic
+        }
+    }
+    
+    /// Compare roles by their raw string values for consistent ordering
+    internal static func < (lhs: SystemRole, rhs: SystemRole) -> Bool {
+        return lhs.rawValue < rhs.rawValue
+    }
+}
+
+// MARK: - User-Friendly Generic Role
+
+/// User-friendly generic roles for external API use
+/// These roles provide intuitive, simplified categories that absorb variations and inconsistencies
+public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
+    // Core interactive elements
+    case button = "Button"
+    case field = "Field"          // Text input (TextField, TextArea)
+    case check = "Check"          // Checkbox
+    case radio = "Radio"          // Radio button
+    case slider = "Slider"
+    case popUp = "PopUp"          // Popup/dropdown
+    case link = "Link"
+    
+    // Content elements
+    case text = "Text"            // Static text, headings
+    case image = "Image"
+    
+    // Container elements
+    case group = "Group"          // Various grouping containers
+    case list = "List"
+    case table = "Table"
+    case grid = "Grid"
+    case menu = "Menu"
+    case window = "Window"
+    
+    // Navigation
+    case scroll = "Scroll"        // Scroll areas and bars
+    
+    // Special
+    case generic = "Generic"      // Fallback for other elements
+    case unknown = "Unknown"      // Unknown elements
+    
+    /// Initialize from raw string value with flexible matching
+    /// Handles variations like "textField", "TextField", "Field" all mapping to .field
+    public init?(rawValue: String) {
+        // Try direct match first
+        if let role = Role.allCases.first(where: { $0.rawValue == rawValue }) {
+            self = role
+            return
+        }
+        
+        // Try with AX prefix removed
+        let cleanValue = rawValue.hasPrefix("AX") ? String(rawValue.dropFirst(2)) : rawValue
+        if let role = Role.allCases.first(where: { $0.rawValue == cleanValue }) {
+            self = role
+            return
+        }
+        
+        // Handle flexible matching with case-insensitive comparison
+        switch cleanValue.lowercased() {
+        // Button variations
+        case "button", "btn":
+            self = .button
+        
+        // Field variations - this is the key flexible matching
+        case "field", "textfield", "textarea", "text field", "text area", "input":
+            self = .field
+        
+        // Check variations
+        case "check", "checkbox", "check box":
+            self = .check
+        
+        // Radio variations
+        case "radio", "radiobutton", "radio button":
+            self = .radio
+        
+        // Popup variations
+        case "popup", "popupbutton", "dropdown", "select", "combobox":
+            self = .popUp
+        
+        // Text variations
+        case "text", "statictext", "static text", "label", "heading":
+            self = .text
+        
+        // Group variations
+        case "group", "container", "panel", "section":
+            self = .group
+        
+        // Scroll variations
+        case "scroll", "scrollarea", "scrollbar":
+            self = .scroll
+        
+        // List variations
+        case "list", "listbox":
+            self = .list
+        
+        // Table variations
+        case "table", "grid":
+            self = .table
+        
+        // Menu variations
+        case "menu", "menuitem", "menubar":
+            self = .menu
+        
+        // Window variations
+        case "window", "dialog", "sheet":
+            self = .window
+        
+        // Image variations
+        case "image", "picture", "photo":
+            self = .image
+        
+        // Link variations
+        case "link", "hyperlink", "url":
+            self = .link
+        
+        // Slider variations
+        case "slider", "range":
+            self = .slider
+        
+        // Generic fallback
+        case "generic", "element":
+            self = .generic
+        
+        default:
+            self = .unknown
+        }
+    }
+    
+    /// Get possible SystemRole values that map to this generic role
+    internal var possibleSystemRoles: [SystemRole] {
+        switch self {
+        case .button:
+            return [.button, .menuButton, .incrementor, .disclosureTriangle]
+        case .field:
+            return [.textField, .textArea, .field]
+        case .check:
+            return [.checkBox, .check]
+        case .radio:
+            return [.radioButton, .radio]
+        case .popUp:
+            return [.popUpButton, .comboBox, .popUp]
+        case .text:
+            return [.staticText, .headingRole, .listMarkerRole, .helpTag, .text]
+        case .group:
+            return [.group, .tabGroup, .radioGroup, .toolbar, .menuBar, .layoutArea, .layoutItem, .webAreaRole, .pageRole, .matte, .splitGroup]
+        case .scroll:
+            return [.scrollArea, .scrollBar, .scroll]
+        case .list:
+            return [.list]
+        case .table:
+            return [.table, .grid]
+        case .grid:
+            return [.grid, .table]
+        case .menu:
+            return [.menu, .menuItem, .menuBarItem]
+        case .window:
+            return [.window, .sheet, .drawer, .popover]
+        case .image:
+            return [.image]
+        case .link:
+            return [.link]
+        case .slider:
+            return [.slider]
+        case .generic:
+            return [.busyIndicator, .progressIndicator, .levelIndicator, .valueIndicator, .growArea, .handle, .splitter, .ruler, .rulerMarker, .generic]
+        case .unknown:
+            return [.unknown]
+        }
+    }
+    
+    /// Check if this role represents an interactive element
+    public var isInteractive: Bool {
+        switch self {
+        case .button, .field, .check, .radio, .slider, .popUp, .link:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Check if this role represents a container element
+    public var isContainer: Bool {
+        switch self {
+        case .group, .list, .table, .menu, .window, .scroll:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Check if this role represents a text element
+    public var isText: Bool {
+        switch self {
+        case .text, .field:
+            return true
+        default:
+            return false
+        }
+    }
     
     /// Compare roles by their raw string values for consistent ordering
     public static func < (lhs: Role, rhs: Role) -> Bool {

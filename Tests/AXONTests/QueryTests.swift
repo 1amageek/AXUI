@@ -10,7 +10,7 @@ struct QueryTests {
         let query = AXQuery.parse("role=Button,description=Save")
         
         #expect(query != nil)
-        #expect(query?.role == .button)
+        #expect(query?.roleQuery?.equals == .button)
         #expect(query?.description == "Save")
     }
     
@@ -44,11 +44,11 @@ struct QueryTests {
     @Test("Query builder methods")
     func testQueryBuilderMethods() {
         let buttonQuery = AXQuery.button(description: "Save")
-        #expect(buttonQuery.role == .button)
+        #expect(buttonQuery.roleQuery?.equals == .button)
         #expect(buttonQuery.description == "Save")
         
         let textFieldQuery = AXQuery.textField(identifier: "username")
-        #expect(textFieldQuery.role == .field)
+        #expect(textFieldQuery.roleQuery?.equals == .field)
         #expect(textFieldQuery.identifier == "username")
         
         let interactiveQuery = AXQuery.interactive()

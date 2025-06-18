@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication Guidelines
+
+**重要**: このプロジェクトでは技術的な内容について日本語で解説することを基本とする。コードの動作原理、設計思想、実装詳細については、開発者との議論で日本語を使用すること。
+
+**Important**: This project requires Japanese explanations for technical content. Use Japanese when discussing code functionality, design philosophy, and implementation details with the developer.
+
 ## Developer Information
 
 - Developer's name is 1amageek
@@ -213,6 +219,68 @@ Query results are returned as a flat JSON array:
 - **Memory**: Large result sets are handled efficiently with streaming where possible
 - **Accuracy**: Spatial queries use integer bounds for consistency with the JSON format
 - **Extensibility**: Query structure is designed to be extended with new matching conditions
+
+## Role Architecture (ロール設計)
+
+### 二重構造による責任分離
+
+このプロジェクトでは、ロール（Role）を二重構造で管理して、内部処理の正確性と外部APIの使いやすさを両立させています。
+
+#### SystemRole（内部専用）
+- **目的**: アクセシビリティAPIから取得される厳密なロール値を管理
+- **可視性**: `internal` - ライブラリ内部でのみ使用
+- **特徴**: 
+  - アクセシビリティAPIの生の値をそのまま保持
+  - `textField`, `checkBox`, `radioButton`など具体的な値
+  - 正規化機能（`normalized`プロパティ）を提供
+  - 型安全性と正確性を重視
+
+#### Role（外部API用）
+- **目的**: ユーザーが直感的に使える汎用的なロール分類
+- **可視性**: `public` - 外部APIとして公開
+- **特徴**:
+  - 柔軟な初期化（`textField`, `TextField`, `Field`すべて`.field`にマップ）
+  - シンプルな分類（`button`, `field`, `check`, `radio`など）
+  - 使いやすさと曖昧さの吸収を重視
+
+### 変換フロー
+
+```
+アクセシビリティAPI → SystemRole → Role → ユーザークエリ
+                    (内部処理)    (外部API)
+```
+
+### 柔軟なロールマッチング
+
+新しい`Role.init?(rawValue:)`は以下の形式をすべて`.field`にマッピングします：
+
+```swift
+Role(rawValue: "field")     // → .field
+Role(rawValue: "Field")     // → .field  
+Role(rawValue: "textField") // → .field
+Role(rawValue: "TextField") // → .field
+Role(rawValue: "TextArea")  // → .field
+Role(rawValue: "input")     // → .field
+```
+
+この設計により、ユーザーは表記の違いを気にせずに直感的なクエリを作成できます。
+
+### コード例
+
+```swift
+// 内部処理 - 正確なSystemRoleを使用
+let systemRole: SystemRole = .textField
+let normalizedRole = systemRole.normalized  // .field
+
+// 外部API - 汎用的なRoleを使用  
+let query = AXQuery()
+query.roleQuery = RoleQuery()
+query.roleQuery!.equals = .field  // ユーザーフレンドリー
+
+// 柔軟なマッチング
+let userInput = "TextField"  // ユーザー入力
+let role = Role(rawValue: userInput)  // → .field
+```
 
 ## Testing Framework
 

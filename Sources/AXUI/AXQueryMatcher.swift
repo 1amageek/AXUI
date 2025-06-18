@@ -21,8 +21,9 @@ public struct AXQueryMatcher {
         
         // Basic property matching
         if let roleQuery = query.roleQuery {
-            guard let elementRole = element.role else { return false }
-            if !roleQuery.matches(elementRole) { return false }
+            guard let elementSystemRole = element.role else { return false }
+            let elementGenericRole = elementSystemRole.generic
+            if !roleQuery.matches(elementGenericRole) { return false }
         }
         
         if let description = query.description {

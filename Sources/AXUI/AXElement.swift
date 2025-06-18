@@ -7,8 +7,13 @@ public struct AXElement: Codable, @unchecked Sendable {
     // Generated ID
     public let id: String
     
-    // Core properties
-    public let role: Role?
+    // Core properties (system role for ID generation and compatibility)
+    internal let systemRole: SystemRole
+    
+    /// User-friendly role computed from systemRole
+    public var role: Role {
+        return systemRole.generic
+    }
     public let description: String?
     public let identifier: String?
     public let roleDescription: String?
@@ -39,7 +44,7 @@ public struct AXElement: Codable, @unchecked Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(role?.rawValue, forKey: .role)
+        try container.encode(role.rawValue, forKey: .role)
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(identifier, forKey: .identifier)
         try container.encodeIfPresent(roleDescription, forKey: .roleDescription)
@@ -55,7 +60,14 @@ public struct AXElement: Codable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         let roleString = try container.decodeIfPresent(String.self, forKey: .role)
-        role = roleString != nil ? Role(rawValue: roleString!) : nil
+        // When deserializing, we need to reverse-map Role back to SystemRole
+        // This is a best-effort approach since the mapping isn't perfect
+        if let roleString = roleString, let role = Role(rawValue: roleString) {
+            // Try to find a corresponding SystemRole for this Role
+            systemRole = role.possibleSystemRoles.first ?? .unknown
+        } else {
+            systemRole = .unknown
+        }
         description = try container.decodeIfPresent(String.self, forKey: .description)
         identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
         roleDescription = try container.decodeIfPresent(String.self, forKey: .roleDescription)
@@ -67,8 +79,8 @@ public struct AXElement: Codable, @unchecked Sendable {
         axElementRef = nil
     }
     
-    public init(
-        role: Role?,
+    internal init(
+        systemRole: SystemRole,
         description: String?,
         identifier: String?,
         roleDescription: String?,
@@ -81,7 +93,7 @@ public struct AXElement: Codable, @unchecked Sendable {
         children: [AXElement]? = nil,
         axElementRef: AXUIElement? = nil
     ) {
-        self.role = role
+        self.systemRole = systemRole
         self.description = description
         self.identifier = identifier
         self.roleDescription = roleDescription
@@ -102,7 +114,7 @@ public struct AXElement: Codable, @unchecked Sendable {
         
         // Generate consistent ID based on element properties
         self.id = Self.generateID(
-            role: role?.rawValue,
+            role: systemRole.rawValue,
             identifier: identifier,
             position: position,
             size: size
@@ -124,11 +136,6 @@ public struct AXElement: Codable, @unchecked Sendable {
         }
         if let size = size {
             hashInput += "\(size.width),\(size.height)"
-        }
-        
-        // If we have no properties, use a random fallback
-        if hashInput.isEmpty {
-            hashInput = UUID().uuidString
         }
         
         // Generate SHA256 hash using CryptoKit

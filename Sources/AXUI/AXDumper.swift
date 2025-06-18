@@ -342,7 +342,7 @@ public struct AXDumper {
         
         // Create element with children if applicable
         let axElement = AXElement(
-            role: normalizedRole,
+            systemRole: normalizedRole ?? .unknown,
             description: description,
             identifier: identifier,
             roleDescription: roleDescription,
@@ -365,18 +365,13 @@ public struct AXDumper {
         }
     }
     
-    internal static func normalizeRole(_ role: String?) -> Role? {
+    internal static func normalizeRole(_ role: String?) -> SystemRole? {
         guard let role = role else { return nil }
         
         let cleanRole = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
         
-        // First convert to SystemRole, then to generic Role
-        if let systemRole = SystemRole(rawValue: cleanRole) {
-            return systemRole.generic
-        }
-        
-        // If SystemRole conversion fails, try direct Role conversion
-        return Role(rawValue: cleanRole)
+        // Convert to SystemRole
+        return SystemRole(rawValue: cleanRole)
     }
     
     
@@ -441,7 +436,7 @@ public struct AXDumper {
         }()
         
         return AXElement(
-            role: normalizedRole,
+            systemRole: normalizedRole ?? .unknown,
             description: description,
             identifier: identifier,
             roleDescription: roleDescription,
@@ -555,7 +550,7 @@ public struct AXDumper {
         
         // Create element with children if applicable
         let axElement = AXElement(
-            role: normalizedRole,
+            systemRole: normalizedRole ?? .unknown,
             description: description,
             identifier: identifier,
             roleDescription: roleDescription,
@@ -659,7 +654,7 @@ public struct AXDumper {
         
         // Create element - INCLUDE ALL ELEMENTS except Groups, including zero-size
         let axElement = AXElement(
-            role: normalizedRole,
+            systemRole: normalizedRole ?? .unknown,
             description: description,
             identifier: identifier,
             roleDescription: roleDescription,

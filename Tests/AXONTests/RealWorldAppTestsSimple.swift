@@ -44,7 +44,7 @@ import Foundation
 private func createSampleCalendarElements() -> [AXElement] {
     return [
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Calendar",
             identifier: "com.apple.iCal",
             roleDescription: nil,
@@ -56,7 +56,7 @@ private func createSampleCalendarElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Calendar",
             identifier: nil,
             roleDescription: nil,
@@ -68,7 +68,7 @@ private func createSampleCalendarElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .group,
+            systemRole: .group,
             description: nil,
             identifier: nil,
             roleDescription: nil,
@@ -80,7 +80,7 @@ private func createSampleCalendarElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .button,
+            systemRole: .button,
             description: "Today",
             identifier: nil,
             roleDescription: nil,
@@ -97,7 +97,7 @@ private func createSampleCalendarElements() -> [AXElement] {
 private func createSampleWeatherElements() -> [AXElement] {
     return [
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Weather",
             identifier: "com.apple.weather",
             roleDescription: nil,
@@ -109,7 +109,7 @@ private func createSampleWeatherElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Weather",
             identifier: nil,
             roleDescription: nil,
@@ -121,7 +121,7 @@ private func createSampleWeatherElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .text,
+            systemRole: .staticText,
             description: "Tokyo, Japan",
             identifier: nil,
             roleDescription: nil,
@@ -133,7 +133,7 @@ private func createSampleWeatherElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .text,
+            systemRole: .staticText,
             description: "25°C",
             identifier: nil,
             roleDescription: nil,
@@ -150,7 +150,7 @@ private func createSampleWeatherElements() -> [AXElement] {
 private func createSampleMapsElements() -> [AXElement] {
     return [
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Maps",
             identifier: "com.apple.Maps",
             roleDescription: nil,
@@ -162,7 +162,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .window,
+            systemRole: .window,
             description: "Maps",
             identifier: nil,
             roleDescription: nil,
@@ -174,7 +174,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .group,
+            systemRole: .group,
             description: nil,
             identifier: nil,
             roleDescription: nil,
@@ -186,7 +186,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .field,
+            systemRole: .textField,
             description: "Search for a place or address",
             identifier: nil,
             roleDescription: "search field",
@@ -198,7 +198,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .button,
+            systemRole: .button,
             description: "Directions",
             identifier: nil,
             roleDescription: nil,

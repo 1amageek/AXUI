@@ -7,7 +7,7 @@ import Foundation
     
     // Create an AXElement with known properties
     let axElement = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Save",
         identifier: "save-button",
         roleDescription: "Save Button",
@@ -37,7 +37,7 @@ import Foundation
     
     // Create parent element
     let child1 = AXElement(
-        role: .text,
+        systemRole: .staticText,
         description: "Child 1",
         identifier: nil,
         roleDescription: nil,
@@ -50,7 +50,7 @@ import Foundation
     )
     
     let child2 = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Child 2",
         identifier: "child2",
         roleDescription: nil,
@@ -63,7 +63,7 @@ import Foundation
     )
     
     let parent = AXElement(
-        role: .group,
+        systemRole: .group,
         description: nil,
         identifier: "parent",
         roleDescription: nil,
@@ -105,7 +105,7 @@ import Foundation
     
     // Create a group with only children (should use minimal representation)
     let child = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Test",
         identifier: "test-btn",
         roleDescription: nil,
@@ -118,7 +118,7 @@ import Foundation
     )
     
     let group = AXElement(
-        role: .group,
+        systemRole: .group,
         description: nil,
         identifier: nil,
         roleDescription: nil,
@@ -148,7 +148,7 @@ import Foundation
     let encoder = AIElementEncoder()
     
     let axElement = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Click Me",
         identifier: "click-button",
         roleDescription: nil,
@@ -178,7 +178,7 @@ import Foundation
     
     // Create identical elements to test ID generation consistency
     let axElement1 = AXElement(
-        role: .field,
+        systemRole: .textField,
         description: "Username",
         identifier: "username",
         roleDescription: nil,
@@ -191,7 +191,7 @@ import Foundation
     )
     
     let axElement2 = AXElement(
-        role: .field,
+        systemRole: .textField,
         description: "Username",
         identifier: "username",
         roleDescription: nil,

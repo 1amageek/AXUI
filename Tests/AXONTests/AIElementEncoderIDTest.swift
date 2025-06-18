@@ -5,7 +5,7 @@ import Foundation
 @Test func testAIElementEncoderIDGeneration() throws {
     // Create test AXElements
     let child1 = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Save",
         identifier: "save-btn",
         roleDescription: "Save Button",
@@ -18,7 +18,7 @@ import Foundation
     )
     
     let child2 = AXElement(
-        role: .button,
+        systemRole: .button,
         description: "Cancel",
         identifier: "cancel-btn",
         roleDescription: "Cancel Button",
@@ -31,7 +31,7 @@ import Foundation
     )
     
     let parent = AXElement(
-        role: .group,
+        systemRole: .group,
         description: nil,
         identifier: "button-group",
         roleDescription: nil,

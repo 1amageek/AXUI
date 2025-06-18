@@ -118,7 +118,7 @@ struct QueryTests {
     @Test("Element matching")
     func testElementMatching() {
         let element = AXElement(
-            role: .button,
+            systemRole: .button,
             description: "Save",
             identifier: "save-btn",
             roleDescription: nil,

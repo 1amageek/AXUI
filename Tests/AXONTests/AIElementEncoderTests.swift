@@ -37,7 +37,7 @@ import Foundation
     
     // Create parent element
     let child1 = AXElement(
-        role: .staticText,
+        role: .text,
         description: "Child 1",
         identifier: nil,
         roleDescription: nil,
@@ -178,7 +178,7 @@ import Foundation
     
     // Create identical elements to test ID generation consistency
     let axElement1 = AXElement(
-        role: .textField,
+        role: .field,
         description: "Username",
         identifier: "username",
         roleDescription: nil,
@@ -191,7 +191,7 @@ import Foundation
     )
     
     let axElement2 = AXElement(
-        role: .textField,
+        role: .field,
         description: "Username",
         identifier: "username",
         roleDescription: nil,

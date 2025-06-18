@@ -44,7 +44,7 @@ import Foundation
 private func createSampleCalendarElements() -> [AXElement] {
     return [
         AXElement(
-            role: .application,
+            role: .window,
             description: "Calendar",
             identifier: "com.apple.iCal",
             roleDescription: nil,
@@ -68,7 +68,7 @@ private func createSampleCalendarElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .toolbar,
+            role: .group,
             description: nil,
             identifier: nil,
             roleDescription: nil,
@@ -97,7 +97,7 @@ private func createSampleCalendarElements() -> [AXElement] {
 private func createSampleWeatherElements() -> [AXElement] {
     return [
         AXElement(
-            role: .application,
+            role: .window,
             description: "Weather",
             identifier: "com.apple.weather",
             roleDescription: nil,
@@ -121,7 +121,7 @@ private func createSampleWeatherElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .staticText,
+            role: .text,
             description: "Tokyo, Japan",
             identifier: nil,
             roleDescription: nil,
@@ -133,7 +133,7 @@ private func createSampleWeatherElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .staticText,
+            role: .text,
             description: "25°C",
             identifier: nil,
             roleDescription: nil,
@@ -150,7 +150,7 @@ private func createSampleWeatherElements() -> [AXElement] {
 private func createSampleMapsElements() -> [AXElement] {
     return [
         AXElement(
-            role: .application,
+            role: .window,
             description: "Maps",
             identifier: "com.apple.Maps",
             roleDescription: nil,
@@ -174,7 +174,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .toolbar,
+            role: .group,
             description: nil,
             identifier: nil,
             roleDescription: nil,
@@ -186,7 +186,7 @@ private func createSampleMapsElements() -> [AXElement] {
             focused: false
         ),
         AXElement(
-            role: .textField,
+            role: .field,
             description: "Search for a place or address",
             identifier: nil,
             roleDescription: "search field",

@@ -226,9 +226,9 @@ Query results are returned as a flat JSON array:
 
 このプロジェクトでは、ロール（Role）を二重構造で管理して、内部処理の正確性と外部APIの使いやすさを両立させています。
 
-#### SystemRole（システムレベル）
+#### SystemRole（内部専用）
 - **目的**: アクセシビリティAPIから取得される厳密なロール値を管理
-- **可視性**: `public` - AXElementの一部として公開（詳細な情報が必要な場合にアクセス可能）
+- **可視性**: `internal` - ライブラリ内部でのみ使用
 - **特徴**: 
   - アクセシビリティAPIの生の値をそのまま保持
   - `textField`, `checkBox`, `radioButton`など具体的な値
@@ -242,12 +242,13 @@ Query results are returned as a flat JSON array:
   - 柔軟な初期化（`textField`, `TextField`, `Field`すべて`.field`にマップ）
   - シンプルな分類（`button`, `field`, `check`, `radio`など）
   - 使いやすさと曖昧さの吸収を重視
+  - `AXElement.role`として直接利用可能
 
 ### 変換フロー
 
 ```
-アクセシビリティAPI → SystemRole → Role → ユーザークエリ
-                    (内部処理)    (外部API)
+アクセシビリティAPI → SystemRole → Role → AXElement.role
+                    (内部変換)   (外部API)
 ```
 
 ### 柔軟なロールマッチング
@@ -268,14 +269,18 @@ Role(rawValue: "input")     // → .field
 ### コード例
 
 ```swift
-// 内部処理 - 正確なSystemRoleを使用
+// 内部処理 - SystemRoleからRoleへ変換
 let systemRole: SystemRole = .textField
-let normalizedRole = systemRole.normalized  // .field
+let genericRole = systemRole.generic  // → .field
 
-// 外部API - 汎用的なRoleを使用  
+// 外部API - AXElementは直接Roleを使用
+let element = AXElement(role: .field, ...)  // シンプル
+if element.role == .field { ... }  // 直感的
+
+// クエリとの一貫性
 let query = AXQuery()
 query.roleQuery = RoleQuery()
-query.roleQuery!.equals = .field  // ユーザーフレンドリー
+query.roleQuery!.equals = .field  // AXElement.roleと同じ型
 
 // 柔軟なマッチング
 let userInput = "TextField"  // ユーザー入力

@@ -365,11 +365,18 @@ public struct AXDumper {
         }
     }
     
-    internal static func normalizeRole(_ role: String?) -> SystemRole? {
+    internal static func normalizeRole(_ role: String?) -> Role? {
         guard let role = role else { return nil }
         
         let cleanRole = role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
-        return SystemRole(rawValue: cleanRole)
+        
+        // First convert to SystemRole, then to generic Role
+        if let systemRole = SystemRole(rawValue: cleanRole) {
+            return systemRole.generic
+        }
+        
+        // If SystemRole conversion fails, try direct Role conversion
+        return Role(rawValue: cleanRole)
     }
     
     

@@ -3,7 +3,7 @@ import Foundation
 /// System-level accessibility element roles based on NSAccessibility constants
 /// All roles follow the project convention of removing "AX" prefixes
 /// This enum represents the exact roles as returned by the accessibility API
-public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
+internal enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     // Application and system
     case application = "Application"
     case systemWide = "SystemWide"
@@ -102,7 +102,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     case generic = "Generic"     // Normalized from GenericElement
     
     /// Initialize from raw string value, handling both prefixed and non-prefixed formats
-    public init?(rawValue: String) {
+    internal init?(rawValue: String) {
         // Try direct match first
         if let role = SystemRole.allCases.first(where: { $0.rawValue == rawValue }) {
             self = role
@@ -260,7 +260,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Get display name for UI
-    public var displayName: String {
+    internal var displayName: String {
         switch self {
         case .systemWide:
             return "System Wide"
@@ -338,7 +338,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents an interactive element
-    public var isInteractive: Bool {
+    internal var isInteractive: Bool {
         switch self {
         case .button, .popUpButton, .menuButton, .checkBox, .radioButton,
              .slider, .incrementor, .comboBox, .disclosureTriangle,
@@ -351,7 +351,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents a container element
-    public var isContainer: Bool {
+    internal var isContainer: Bool {
         switch self {
         case .group, .radioGroup, .list, .scrollArea, .splitGroup,
              .table, .outline, .browser, .tabGroup, .row, .column,
@@ -365,7 +365,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Check if this role represents a text element
-    public var isText: Bool {
+    internal var isText: Bool {
         switch self {
         case .textField, .textArea, .staticText, .headingRole,
              .text, .field:
@@ -376,7 +376,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Convert to the normalized role used in this project
-    public var normalized: SystemRole {
+    internal var normalized: SystemRole {
         switch self {
         case .staticText:
             return .text
@@ -441,7 +441,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Convert to the user-friendly generic role
-    public var generic: Role {
+    internal var generic: Role {
         switch self {
         case .staticText:
             return .text
@@ -474,7 +474,7 @@ public enum SystemRole: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Compare roles by their raw string values for consistent ordering
-    public static func < (lhs: SystemRole, rhs: SystemRole) -> Bool {
+    internal static func < (lhs: SystemRole, rhs: SystemRole) -> Bool {
         return lhs.rawValue < rhs.rawValue
     }
 }
@@ -600,7 +600,7 @@ public enum Role: String, Codable, CaseIterable, Sendable, Comparable {
     }
     
     /// Get possible SystemRole values that map to this generic role
-    public var possibleSystemRoles: [SystemRole] {
+    internal var possibleSystemRoles: [SystemRole] {
         switch self {
         case .button:
             return [.button, .menuButton, .incrementor, .disclosureTriangle]

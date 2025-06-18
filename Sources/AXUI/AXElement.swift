@@ -8,7 +8,7 @@ public struct AXElement: Codable, @unchecked Sendable {
     public let id: String
     
     // Core properties
-    public let role: SystemRole?
+    public let role: Role?
     public let description: String?
     public let identifier: String?
     public let roleDescription: String?
@@ -55,7 +55,7 @@ public struct AXElement: Codable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         let roleString = try container.decodeIfPresent(String.self, forKey: .role)
-        role = roleString != nil ? SystemRole(rawValue: roleString!) : nil
+        role = roleString != nil ? Role(rawValue: roleString!) : nil
         description = try container.decodeIfPresent(String.self, forKey: .description)
         identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
         roleDescription = try container.decodeIfPresent(String.self, forKey: .roleDescription)
@@ -68,7 +68,7 @@ public struct AXElement: Codable, @unchecked Sendable {
     }
     
     public init(
-        role: SystemRole?,
+        role: Role?,
         description: String?,
         identifier: String?,
         roleDescription: String?,
@@ -148,11 +148,6 @@ public struct AXElement: Codable, @unchecked Sendable {
         }
         
         return id
-    }
-    
-    /// Get the user-friendly generic role for external API use
-    public var genericRole: Role? {
-        return role?.generic
     }
 }
 

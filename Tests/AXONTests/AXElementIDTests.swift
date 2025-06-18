@@ -27,7 +27,7 @@ import Foundation
 @Test func testAXElementIDConsistency() {
     // Create two elements with identical properties
     let element1 = AXElement(
-        role: .textField,
+        role: .field,
         description: "Username",
         identifier: "username-field",
         roleDescription: nil,
@@ -40,7 +40,7 @@ import Foundation
     )
     
     let element2 = AXElement(
-        role: .textField,
+        role: .field,
         description: "Username",
         identifier: "username-field",
         roleDescription: nil,
@@ -91,7 +91,7 @@ import Foundation
 @Test func testAXElementIDWithMissingProperties() {
     // Test with minimal properties
     let element1 = AXElement(
-        role: .staticText,
+        role: .text,
         description: nil,
         identifier: nil,
         roleDescription: nil,

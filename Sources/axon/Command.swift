@@ -173,7 +173,7 @@ struct DumpCommand: ParsableCommand {
             print("   JSON size: \(formatBytes(jsonOutput.count))")
             
             // Show breakdown by role
-            let roleCount = Dictionary(grouping: elements, by: { $0.genericRole?.rawValue ?? "Unknown" })
+            let roleCount = Dictionary(grouping: elements, by: { $0.role?.rawValue ?? "Unknown" })
                 .mapValues { $0.count }
                 .sorted { $0.value > $1.value }
             
@@ -283,7 +283,7 @@ struct DebugDumpCommand: ParsableCommand {
             print("   JSON size: \(formatBytes(jsonOutput.count))")
             
             // Show breakdown by role
-            let roleCount = Dictionary(grouping: elements, by: { $0.genericRole?.rawValue ?? "Unknown" })
+            let roleCount = Dictionary(grouping: elements, by: { $0.role?.rawValue ?? "Unknown" })
                 .mapValues { $0.count }
                 .sorted { $0.value > $1.value }
             

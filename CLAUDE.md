@@ -226,9 +226,9 @@ Query results are returned as a flat JSON array:
 
 このプロジェクトでは、ロール（Role）を二重構造で管理して、内部処理の正確性と外部APIの使いやすさを両立させています。
 
-#### SystemRole（内部専用）
+#### SystemRole（システムレベル）
 - **目的**: アクセシビリティAPIから取得される厳密なロール値を管理
-- **可視性**: `internal` - ライブラリ内部でのみ使用
+- **可視性**: `public` - AXElementの一部として公開（詳細な情報が必要な場合にアクセス可能）
 - **特徴**: 
   - アクセシビリティAPIの生の値をそのまま保持
   - `textField`, `checkBox`, `radioButton`など具体的な値

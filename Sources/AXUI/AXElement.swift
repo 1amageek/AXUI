@@ -7,8 +7,8 @@ public struct AXElement: Codable, @unchecked Sendable {
     // Generated ID
     public let id: String
     
-    // Core properties (internal system role)
-    internal let role: SystemRole?
+    // Core properties
+    public let role: SystemRole?
     public let description: String?
     public let identifier: String?
     public let roleDescription: String?
@@ -67,7 +67,7 @@ public struct AXElement: Codable, @unchecked Sendable {
         axElementRef = nil
     }
     
-    internal init(
+    public init(
         role: SystemRole?,
         description: String?,
         identifier: String?,

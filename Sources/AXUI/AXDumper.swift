@@ -7,6 +7,34 @@ import Compression
 
 public struct AXDumper {
     
+    // MARK: - Cache Management
+    
+    private static let cacheQueue = DispatchQueue(label: "com.axui.cache", attributes: .concurrent)
+    private nonisolated(unsafe) static var _elementCache: [String: [AXElement]] = [:]
+    
+    private static var elementCache: [String: [AXElement]] {
+        get {
+            return cacheQueue.sync { _elementCache }
+        }
+        set {
+            cacheQueue.async(flags: .barrier) { _elementCache = newValue }
+        }
+    }
+    
+    /// Clear cache for all applications
+    public static func clearCache() {
+        cacheQueue.async(flags: .barrier) {
+            _elementCache.removeAll()
+        }
+    }
+    
+    /// Clear cache for specific application
+    public static func clearCache(for bundleIdentifier: String) {
+        cacheQueue.async(flags: .barrier) {
+            _elementCache.removeValue(forKey: bundleIdentifier)
+        }
+    }
+    
     /// Check if accessibility permissions are granted
     public static func checkAccessibilityPermissions() -> Bool {
         return AXIsProcessTrusted()
@@ -180,6 +208,14 @@ public struct AXDumper {
         // Build flat array of elements with filtering during traversal
         try flattenElementWithFilter(appElement, elements: &elements, elementCount: &elementCount, maxElements: maxElements, query: query, includeZeroSize: includeZeroSize)
         
+        // Cache the full element list (only if no query filter was applied)
+        if query == nil {
+            let elementsToCache = elements
+            cacheQueue.async(flags: .barrier) {
+                _elementCache[bundleIdentifier] = elementsToCache
+            }
+        }
+        
         return elements
     }
     
@@ -210,6 +246,22 @@ public struct AXDumper {
     /// Query elements in a specific window
     public static func queryWindowElements(bundleIdentifier: String, windowIndex: Int, query: AXQuery, maxElements: Int = 5000) throws -> [AXElement] {
         return try dumpWindow(bundleIdentifier: bundleIdentifier, windowIndex: windowIndex, query: query, maxElements: maxElements)
+    }
+    
+    /// Get element by its generated ID using cache when available
+    public static func element(id: String, bundleIdentifier: String, maxElements: Int = 5000) throws -> AXElement? {
+        // First try to find in cache
+        let cachedElement = cacheQueue.sync {
+            _elementCache[bundleIdentifier]?.first { $0.id == id }
+        }
+        
+        if let element = cachedElement {
+            return element
+        }
+        
+        // If not in cache, perform full dump (which will update cache)
+        let elements = try dump(bundleIdentifier: bundleIdentifier, maxElements: maxElements)
+        return elements.first { $0.id == id }
     }
     
     /// Debug dump with absolutely no filtering - includes all elements including Groups and zero-size elements

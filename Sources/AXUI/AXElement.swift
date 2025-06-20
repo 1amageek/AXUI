@@ -156,6 +156,92 @@ public struct AXElement: Codable, @unchecked Sendable {
         
         return id
     }
+    
+    // MARK: - Value Operations
+    
+    /// Get the current value of this element
+    public func getValue() -> String? {
+        guard let axElement = axElementRef else { return nil }
+        
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(axElement, kAXValueAttribute as CFString, &value)
+        
+        guard result == .success, let stringValue = value as? String else {
+            return nil
+        }
+        
+        return stringValue
+    }
+    
+    /// Set the value of this element
+    public func setValue(_ newValue: String) throws {
+        guard let axElement = axElementRef else {
+            throw AXElementError.noElementReference
+        }
+        
+        let result = AXUIElementSetAttributeValue(axElement, kAXValueAttribute as CFString, newValue as CFString)
+        
+        guard result == .success else {
+            throw AXElementError.setValueFailed(result)
+        }
+    }
+}
+
+// MARK: - AXElement Errors
+
+public enum AXElementError: Error, LocalizedError {
+    case noElementReference
+    case setValueFailed(AXError)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .noElementReference:
+            return "No accessibility element reference available for this element"
+        case .setValueFailed(let axError):
+            return "Failed to set value: \(axError.description)"
+        }
+    }
+}
+
+extension AXError {
+    var description: String {
+        switch self {
+        case .success:
+            return "Success"
+        case .failure:
+            return "General failure"
+        case .illegalArgument:
+            return "Illegal argument"
+        case .invalidUIElement:
+            return "Invalid UI element"
+        case .invalidUIElementObserver:
+            return "Invalid UI element observer"
+        case .cannotComplete:
+            return "Cannot complete operation"
+        case .attributeUnsupported:
+            return "Attribute unsupported"
+        case .actionUnsupported:
+            return "Action unsupported"
+        case .notificationUnsupported:
+            return "Notification unsupported"
+        case .notImplemented:
+            return "Not implemented"
+        case .notificationAlreadyRegistered:
+            return "Notification already registered"
+        case .notificationNotRegistered:
+            return "Notification not registered"
+        case .apiDisabled:
+            return "API disabled"
+        case .noValue:
+            return "No value"
+        case .parameterizedAttributeUnsupported:
+            return "Parameterized attribute unsupported"
+        case .notEnoughPrecision:
+            return "Not enough precision"
+        @unknown default:
+            return "Unknown error (\(self.rawValue))"
+        }
+    }
 }
 
 /// Element state for flat representation

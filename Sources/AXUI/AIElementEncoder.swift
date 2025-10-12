@@ -59,16 +59,19 @@ public final class AIElementEncoder: Sendable {
         
         // Map description to value for AI clarity
         let value = axElement.description
-        
+
+        // Map identifier to name for brevity
+        let name = axElement.identifier
+
         // Map roleDescription to desc, but filter out redundant descriptions
         let desc = filterRedundantDescription(role: normalizedRole, roleDescription: axElement.roleDescription)
-        
+
         // Convert bounds
         let bounds = axElement.bounds
-        
+
         // Convert state
         let state = convertState(from: axElement.state)
-        
+
         // Convert children with path tracking
         let children = convertChildren(from: axElement.children, parentPath: parentPath)
         
@@ -77,6 +80,7 @@ public final class AIElementEncoder: Sendable {
             return applyGroupOptimization(
                 id: id,
                 value: value,
+                name: name,
                 desc: desc,
                 bounds: bounds,
                 state: state,
@@ -88,6 +92,7 @@ public final class AIElementEncoder: Sendable {
             id: id,
             role: axElement.role,
             value: value,
+            name: name,
             desc: desc,
             bounds: bounds,
             state: state?.isDefault == false ? state : nil,
@@ -370,23 +375,26 @@ public final class AIElementEncoder: Sendable {
     private func applyGroupOptimization(
         id: String,
         value: String?,
+        name: String?,
         desc: String?,
         bounds: [Int]?,
         state: AIElementState?,
         children: [AIElement.Node]?
     ) -> AIElement {
         // G-Minimal: Use array representation if only default attributes
-        let hasNonDefaultAttributes = value != nil || 
-                                     desc != nil || 
-                                     bounds != nil || 
+        let hasNonDefaultAttributes = value != nil ||
+                                     name != nil ||
+                                     desc != nil ||
+                                     bounds != nil ||
                                      (state?.isDefault == false)
-        
+
         if !hasNonDefaultAttributes && children != nil {
             // G-Minimal: Return element with nil role for array representation
             return AIElement(
                 id: id,
                 role: nil,
                 value: nil,
+                name: nil,
                 desc: nil,
                 bounds: nil,
                 state: nil,
@@ -398,6 +406,7 @@ public final class AIElementEncoder: Sendable {
                 id: id,
                 role: nil, // Group role is omitted in AI format
                 value: value,
+                name: name,
                 desc: desc,
                 bounds: bounds,
                 state: state?.isDefault == false ? state : nil,
@@ -412,11 +421,12 @@ public final class AIElementEncoder: Sendable {
 extension AIElement {
     /// Check if this element should be represented as a group array
     public var shouldUseGroupArrayRepresentation: Bool {
-        return role == nil && 
-               value == nil && 
-               desc == nil && 
-               bounds == nil && 
-               state == nil && 
+        return role == nil &&
+               value == nil &&
+               name == nil &&
+               desc == nil &&
+               bounds == nil &&
+               state == nil &&
                children != nil
     }
 }
@@ -436,6 +446,7 @@ extension AIElement {
             try container.encode(id, forKey: .id)
             try container.encodeIfPresent(role, forKey: .role)
             try container.encodeIfPresent(value, forKey: .value)
+            try container.encodeIfPresent(name, forKey: .name)
             try container.encodeIfPresent(desc, forKey: .desc)
             try container.encodeIfPresent(bounds, forKey: .bounds)
             try container.encodeIfPresent(state, forKey: .state)
@@ -445,5 +456,5 @@ extension AIElement {
 }
 
 private enum AIElementCodingKeys: String, CodingKey, Sendable {
-    case id, role, value, desc, bounds, state, children
+    case id, role, value, name, desc, bounds, state, children
 }

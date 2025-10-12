@@ -25,17 +25,17 @@ public struct AIElementConverter: Sendable {
     private func convertToAIElement(from axElement: AXElement) -> AIElement {
         let normalizedRole = axElement.role.rawValue
         let value = axElement.description
-        let identifier = axElement.identifier
+        let name = axElement.identifier
         let desc = filterRedundantDescription(role: normalizedRole, roleDescription: axElement.roleDescription)
         let bounds = axElement.bounds
         let state = convertState(from: axElement.state)
-        
+
         // For flat representation, we don't include children structure
         return AIElement(
             id: axElement.id,
             role: axElement.role,
             value: value,
-            identifier: identifier,
+            name: name,
             desc: desc,
             bounds: bounds,
             state: state?.isDefault == false ? state : nil,

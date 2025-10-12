@@ -7,13 +7,13 @@ internal struct AIElement: Codable, Sendable {
     
     /// Element type without "AX" prefix (e.g., "Button", "StaticText", "Window")
     public let role: Role?
-    
+
     /// Display text content (mapped from description)
     public let value: String?
-    
-    /// Element identifier (accessibility identifier)
-    public let identifier: String?
-    
+
+    /// Element identifier (mapped from accessibility identifier)
+    public let name: String?
+
     /// Role description (mapped from roleDescription)
     public let desc: String?
     
@@ -31,7 +31,7 @@ internal struct AIElement: Codable, Sendable {
         id: String,
         role: Role? = nil,
         value: String? = nil,
-        identifier: String? = nil,
+        name: String? = nil,
         desc: String? = nil,
         bounds: [Int]? = nil,
         state: AIElementState? = nil,
@@ -40,7 +40,7 @@ internal struct AIElement: Codable, Sendable {
         self.id = id
         self.role = role
         self.value = value
-        self.identifier = identifier
+        self.name = name
         self.desc = desc
         self.bounds = bounds
         self.state = state

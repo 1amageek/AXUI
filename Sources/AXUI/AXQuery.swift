@@ -64,7 +64,7 @@ public struct RoleQuery: Codable, Sendable {
 // MARK: - AX Query System
 
 /// A flexible query structure for matching UI elements based on multiple conditions
-public struct AXQuery: Sendable {
+public struct AXQuery: Codable, Sendable {
     // Basic properties
     public var roleQuery: RoleQuery?
     public var description: String?
@@ -108,9 +108,24 @@ public struct AXQuery: Sendable {
 
 public final class Box<T: Sendable>: @unchecked Sendable {
     public let value: T
-    
+
     public init(_ value: T) {
         self.value = value
+    }
+}
+
+// MARK: - Codable Support for Box
+
+extension Box: Codable where T: Codable {
+    public convenience init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(T.self)
+        self.init(value)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
     }
 }
 

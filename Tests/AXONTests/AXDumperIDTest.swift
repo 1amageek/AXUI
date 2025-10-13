@@ -114,5 +114,5 @@ import Foundation
     
     // Since we can't easily test actual accessibility elements in unit tests,
     // we just verify that the cache methods don't throw errors
-    #expect(true) // Cache methods executed without error
+    #expect(Bool(true)) // Cache methods executed without error
 }

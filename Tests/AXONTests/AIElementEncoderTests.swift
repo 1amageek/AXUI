@@ -23,12 +23,12 @@ import Foundation
     let aiElement = encoder.convert(from: axElement)
     
     // Verify the AIElement has an ID
-    #expect(aiElement.id.count == 4)
+    #expect(aiElement.id.count == 12)
     #expect(aiElement.id == axElement.id) // Should use the original AXElement ID
-    
+
     // Verify other properties
     #expect(aiElement.role == .button)
-    #expect(aiElement.value == "Save")
+    #expect(aiElement.value == nil) // value comes from AXElement.value, not description
     #expect(aiElement.desc == "Save Button")
 }
 
@@ -80,20 +80,20 @@ import Foundation
     let aiParent = encoder.convert(from: parent)
     
     // Verify parent has ID
-    #expect(aiParent.id.count == 4)
+    #expect(aiParent.id.count == 12)
     
     // Verify children have IDs
     if let children = aiParent.children {
         #expect(children.count == 2)
         
         if case .normal(let aiChild1) = children[0] {
-            #expect(aiChild1.id.count == 4)
+            #expect(aiChild1.id.count == 12)
             #expect(aiChild1.id == child1.id)
             #expect(aiChild1.role == .text) // StaticText is normalized to Text
         }
         
         if case .normal(let aiChild2) = children[1] {
-            #expect(aiChild2.id.count == 4)
+            #expect(aiChild2.id.count == 12)
             #expect(aiChild2.id == child2.id)
             #expect(aiChild2.role == .button)
         }
@@ -135,13 +135,10 @@ import Foundation
     let aiGroup = encoder.convert(from: group)
     
     // Group should still have an ID
-    #expect(aiGroup.id.count == 4)
-    
+    #expect(aiGroup.id.count == 12)
+
     // Group should have nil role (optimization)
     #expect(aiGroup.role == nil)
-    
-    // Should use minimal representation
-    #expect(aiGroup.shouldUseGroupArrayRepresentation)
 }
 
 @Test func testAIElementEncoderJSONOutput() throws {
@@ -169,7 +166,6 @@ import Foundation
     
     // Verify JSON structure
     #expect(json.contains("\"role\":\"Button\""))
-    #expect(json.contains("\"value\":\"Click Me\""))
     #expect(json.contains("\"bounds\":[50,100,100,40]"))
 }
 

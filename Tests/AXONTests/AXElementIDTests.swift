@@ -17,7 +17,7 @@ import Foundation
         focused: false
     )
     
-    #expect(element.id.count == 4)
+    #expect(element.id.count == 12)
     #expect(element.id.allSatisfy { char in
         let alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
         return alphanumeric.contains(char)

@@ -188,14 +188,50 @@ extension AXQuery {
 
 // MARK: - Query Parsing
 
+public enum AXQueryParseError: Error, LocalizedError, Sendable, Equatable {
+    case emptyQuery
+    case invalidCondition(String)
+    case unsupportedKey(String)
+    case invalidValue(key: String, value: String)
+    case invalidRegex(key: String, pattern: String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .emptyQuery:
+            return "Query is empty"
+        case .invalidCondition(let condition):
+            return "Invalid query condition: \(condition)"
+        case .unsupportedKey(let key):
+            return "Unsupported query key: \(key)"
+        case .invalidValue(let key, let value):
+            return "Invalid value '\(value)' for key '\(key)'"
+        case .invalidRegex(let key, let pattern):
+            return "Invalid regex '\(pattern)' for key '\(key)'"
+        }
+    }
+}
+
 extension AXQuery {
     /// Parse query from command line string format
     /// Format: "key=value,key2=value2" or "key~=regex"
     public static func parse(_ queryString: String) -> AXQuery? {
+        switch parseResult(queryString) {
+        case .success(let query):
+            return query
+        case .failure:
+            return nil
+        }
+    }
+    
+    /// Parse query with explicit error reporting.
+    public static func parseResult(_ queryString: String) -> Result<AXQuery, AXQueryParseError> {
         var query = AXQuery()
         var subQueries: [Box<AXQuery>] = []
         
-        let pairs = queryString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let pairs = splitQueryPairs(queryString)
+        if pairs.isEmpty {
+            return .failure(.emptyQuery)
+        }
         
         for pair in pairs {
             var subQuery = AXQuery()
@@ -203,22 +239,36 @@ extension AXQuery {
             if pair.contains("~=") {
                 // Regex match
                 let parts = pair.split(separator: "~", maxSplits: 1).map { String($0) }
-                guard parts.count == 2 else { continue }
+                guard parts.count == 2 else {
+                    return .failure(.invalidCondition(pair))
+                }
                 let key = parts[0]
                 let value = String(parts[1].dropFirst()) // Remove '='
                 
                 switch key {
                 case "description":
+                    do {
+                        _ = try NSRegularExpression(pattern: value, options: [])
+                    } catch {
+                        return .failure(.invalidRegex(key: key, pattern: value))
+                    }
                     subQuery.descriptionRegex = value
                 case "identifier":
+                    do {
+                        _ = try NSRegularExpression(pattern: value, options: [])
+                    } catch {
+                        return .failure(.invalidRegex(key: key, pattern: value))
+                    }
                     subQuery.identifierRegex = value
                 default:
-                    continue
+                    return .failure(.unsupportedKey(key))
                 }
             } else if pair.contains("*=") {
                 // Contains match
                 let parts = pair.split(separator: "*", maxSplits: 1).map { String($0) }
-                guard parts.count == 2 else { continue }
+                guard parts.count == 2 else {
+                    return .failure(.invalidCondition(pair))
+                }
                 let key = parts[0]
                 let value = String(parts[1].dropFirst()) // Remove '='
                 
@@ -228,7 +278,7 @@ extension AXQuery {
                 case "identifier":
                     subQuery.identifierContains = value
                 default:
-                    continue
+                    return .failure(.unsupportedKey(key))
                 }
             } else {
                 // Handle comparison operators
@@ -246,7 +296,9 @@ extension AXQuery {
                     }
                 }
                 
-                guard let key = keyPart, let value = valuePart, let op = operatorFound else { continue }
+                guard let key = keyPart, let value = valuePart, let op = operatorFound else {
+                    return .failure(.invalidCondition(pair))
+                }
                 
                 switch key {
                 case "role":
@@ -255,27 +307,57 @@ extension AXQuery {
                         switch op {
                         case "=": roleQuery.equals = role
                         case "!=": roleQuery.notEquals = role
-                        default: continue
+                        default: return .failure(.invalidCondition(pair))
                         }
                         subQuery.roleQuery = roleQuery
                     } else {
-                        continue
+                        return .failure(.invalidValue(key: key, value: value))
                     }
                 case "description":
                     if op == "=" { subQuery.description = String(value) }
-                    else { continue }
+                    else { return .failure(.invalidCondition(pair)) }
                 case "identifier":
                     if op == "=" { subQuery.identifier = String(value) }
-                    else { continue }
+                    else { return .failure(.invalidCondition(pair)) }
                 case "selected":
-                    if op == "=" { subQuery.selected = value == "true" }
-                    else { continue }
+                    if op == "=" {
+                        switch value.lowercased() {
+                        case "true":
+                            subQuery.selected = true
+                        case "false":
+                            subQuery.selected = false
+                        default:
+                            return .failure(.invalidValue(key: key, value: value))
+                        }
+                    } else {
+                        return .failure(.invalidCondition(pair))
+                    }
                 case "enabled":
-                    if op == "=" { subQuery.enabled = value == "true" }
-                    else { continue }
+                    if op == "=" {
+                        switch value.lowercased() {
+                        case "true":
+                            subQuery.enabled = true
+                        case "false":
+                            subQuery.enabled = false
+                        default:
+                            return .failure(.invalidValue(key: key, value: value))
+                        }
+                    } else {
+                        return .failure(.invalidCondition(pair))
+                    }
                 case "focused":
-                    if op == "=" { subQuery.focused = value == "true" }
-                    else { continue }
+                    if op == "=" {
+                        switch value.lowercased() {
+                        case "true":
+                            subQuery.focused = true
+                        case "false":
+                            subQuery.focused = false
+                        default:
+                            return .failure(.invalidValue(key: key, value: value))
+                        }
+                    } else {
+                        return .failure(.invalidCondition(pair))
+                    }
                 case "x":
                     if let doubleValue = Double(value) {
                         var xQuery = ComparisonQuery<Double>()
@@ -286,11 +368,11 @@ extension AXQuery {
                         case "<=": xQuery.lessThanOrEqual = doubleValue
                         case ">": xQuery.greaterThan = doubleValue
                         case "<": xQuery.lessThan = doubleValue
-                        default: continue
+                        default: return .failure(.invalidCondition(pair))
                         }
                         subQuery.x = xQuery
                     } else {
-                        continue
+                        return .failure(.invalidValue(key: key, value: value))
                     }
                 case "y":
                     if let doubleValue = Double(value) {
@@ -302,11 +384,11 @@ extension AXQuery {
                         case "<=": yQuery.lessThanOrEqual = doubleValue
                         case ">": yQuery.greaterThan = doubleValue
                         case "<": yQuery.lessThan = doubleValue
-                        default: continue
+                        default: return .failure(.invalidCondition(pair))
                         }
                         subQuery.y = yQuery
                     } else {
-                        continue
+                        return .failure(.invalidValue(key: key, value: value))
                     }
                 case "width":
                     if let doubleValue = Double(value) {
@@ -318,11 +400,11 @@ extension AXQuery {
                         case "<=": widthQuery.lessThanOrEqual = doubleValue
                         case ">": widthQuery.greaterThan = doubleValue
                         case "<": widthQuery.lessThan = doubleValue
-                        default: continue
+                        default: return .failure(.invalidCondition(pair))
                         }
                         subQuery.width = widthQuery
                     } else {
-                        continue
+                        return .failure(.invalidValue(key: key, value: value))
                     }
                 case "height":
                     if let doubleValue = Double(value) {
@@ -334,14 +416,14 @@ extension AXQuery {
                         case "<=": heightQuery.lessThanOrEqual = doubleValue
                         case ">": heightQuery.greaterThan = doubleValue
                         case "<": heightQuery.lessThan = doubleValue
-                        default: continue
+                        default: return .failure(.invalidCondition(pair))
                         }
                         subQuery.height = heightQuery
                     } else {
-                        continue
+                        return .failure(.invalidValue(key: key, value: value))
                     }
                 default:
-                    continue
+                    return .failure(.unsupportedKey(key))
                 }
             }
             
@@ -349,13 +431,49 @@ extension AXQuery {
         }
         
         if subQueries.count == 1 {
-            return subQueries[0].value
+            return .success(subQueries[0].value)
         } else if subQueries.count > 1 {
             query.andQueries = subQueries
-            return query
+            return .success(query)
         }
-        
-        return nil
+
+        return .failure(.emptyQuery)
+    }
+
+    /// Split query string by unescaped commas. `\,` is treated as a literal comma.
+    private static func splitQueryPairs(_ queryString: String) -> [String] {
+        var pairs: [String] = []
+        var current = ""
+        var escaped = false
+
+        for char in queryString {
+            if escaped {
+                if char == "," {
+                    current.append(",")
+                } else {
+                    current.append("\\")
+                    current.append(char)
+                }
+                escaped = false
+            } else if char == "\\" {
+                escaped = true
+            } else if char == "," {
+                pairs.append(current.trimmingCharacters(in: .whitespaces))
+                current = ""
+            } else {
+                current.append(char)
+            }
+        }
+
+        if escaped {
+            current.append("\\")
+        }
+
+        let trimmed = current.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            pairs.append(trimmed)
+        }
+
+        return pairs
     }
 }
-

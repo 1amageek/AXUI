@@ -49,7 +49,7 @@ import Foundation
     let aiElement = encoder.convert(from: parent)
     
     // Verify parent has ID
-    #expect(aiElement.id.count == 4)
+    #expect(aiElement.id.count == 12)
     #expect(aiElement.id == parent.id) // Should use the AXElement's ID
     
     // Verify children have IDs
@@ -58,17 +58,17 @@ import Foundation
         #expect(children.count == 2)
         
         if case .normal(let aiChild1) = children[0] {
-            #expect(aiChild1.id.count == 4)
+            #expect(aiChild1.id.count == 12)
             #expect(aiChild1.id == child1.id)
             #expect(aiChild1.role == .button)
-            #expect(aiChild1.value == "Save")
+            #expect(aiChild1.value == nil) // value comes from AXElement.value, not description
         }
-        
+
         if case .normal(let aiChild2) = children[1] {
-            #expect(aiChild2.id.count == 4)
+            #expect(aiChild2.id.count == 12)
             #expect(aiChild2.id == child2.id)
             #expect(aiChild2.role == .button)
-            #expect(aiChild2.value == "Cancel")
+            #expect(aiChild2.value == nil) // value comes from AXElement.value, not description
         }
     }
     

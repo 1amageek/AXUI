@@ -63,8 +63,8 @@ import Foundation
     #expect(element1.id != element2.id, "Different elements should have different IDs")
     
     // Test that IDs are 4 characters long and alphanumeric
-    #expect(element1.id.count == 4)
-    #expect(element2.id.count == 4)
+    #expect(element1.id.count == 12)
+    #expect(element2.id.count == 12)
     #expect(element1.id.allSatisfy { $0.isLetter || $0.isNumber })
     #expect(element2.id.allSatisfy { $0.isLetter || $0.isNumber })
 }
@@ -105,7 +105,7 @@ import Foundation
     }
     
     // Verify ID format
-    #expect(firstID.count == 4)
+    #expect(firstID.count == 12)
     #expect(firstID.allSatisfy { $0.isLetter || $0.isNumber })
 }
 
@@ -193,7 +193,7 @@ import Foundation
     
     // All IDs should be properly formatted
     for id in allIDs {
-        #expect(id.count == 4)
+        #expect(id.count == 12)
         #expect(id.allSatisfy { $0.isLetter || $0.isNumber })
     }
 }
@@ -231,7 +231,7 @@ import Foundation
     #expect(elementWithNils.id == anotherElementWithNils.id)
     
     // ID should still be properly formatted
-    #expect(elementWithNils.id.count == 4)
+    #expect(elementWithNils.id.count == 12)
     #expect(elementWithNils.id.allSatisfy { $0.isLetter || $0.isNumber })
     
     // Different from element with non-nil values

@@ -3,13 +3,13 @@ import Foundation
 import CryptoKit
 
 
-public struct AXElement: Codable, @unchecked Sendable {
-    // Generated ID
+public struct AXElement: Codable, Sendable {
+    /// Stable 12-character alphanumeric ID (primary identifier)
     public let id: String
-    
+
     // Core properties (system role for ID generation and compatibility)
     internal let systemRole: SystemRole
-    
+
     /// User-friendly role computed from systemRole
     public var role: Role {
         return systemRole.generic
@@ -18,6 +18,7 @@ public struct AXElement: Codable, @unchecked Sendable {
     public let identifier: String?
     public let roleDescription: String?
     public let help: String?
+    public let value: String?
     public let position: Point?
     public let size: Size?
     public let state: AXElementState?
@@ -33,75 +34,111 @@ public struct AXElement: Codable, @unchecked Sendable {
             Int(size.height)
         ]
     }
-    
-    // Internal reference (not serialized)
-    internal let axElementRef: AXUIElement?
-    
-    private enum CodingKeys: String, CodingKey, Sendable {
-        case id, role, description, identifier, roleDescription, help, position, size, state, children
+
+    /// Human-readable system role name
+    public var systemRoleName: String {
+        systemRole.rawValue
     }
-    
+
+    private enum CodingKeys: String, CodingKey, Sendable {
+        case id, systemRole, role, description, identifier, roleDescription, help, value, position, size, state, children
+    }
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encode(systemRole.rawValue, forKey: .systemRole)
         try container.encode(role.rawValue, forKey: .role)
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(identifier, forKey: .identifier)
         try container.encodeIfPresent(roleDescription, forKey: .roleDescription)
         try container.encodeIfPresent(help, forKey: .help)
+        try container.encodeIfPresent(value, forKey: .value)
         try container.encodeIfPresent(position, forKey: .position)
         try container.encodeIfPresent(size, forKey: .size)
         try container.encodeIfPresent(state, forKey: .state)
         try container.encodeIfPresent(children, forKey: .children)
-        // Internal properties are not encoded
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        let roleString = try container.decodeIfPresent(String.self, forKey: .role)
-        // When deserializing, we need to reverse-map Role back to SystemRole
-        // This is a best-effort approach since the mapping isn't perfect
-        if let roleString = roleString, let role = Role(rawValue: roleString) {
-            // Try to find a corresponding SystemRole for this Role
-            systemRole = role.possibleSystemRoles.first ?? .unknown
+
+        // Decode systemRole first (new format) or fall back to role-based reverse mapping
+        if let systemRoleString = try container.decodeIfPresent(String.self, forKey: .systemRole),
+           let decodedSystemRole = SystemRole(rawValue: systemRoleString) {
+            systemRole = decodedSystemRole
         } else {
-            systemRole = .unknown
+            let roleString = try container.decodeIfPresent(String.self, forKey: .role)
+            if let roleString = roleString, let role = Role(rawValue: roleString) {
+                systemRole = role.possibleSystemRoles.first ?? .unknown
+            } else {
+                systemRole = .unknown
+            }
         }
+
         description = try container.decodeIfPresent(String.self, forKey: .description)
         identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
         roleDescription = try container.decodeIfPresent(String.self, forKey: .roleDescription)
         help = try container.decodeIfPresent(String.self, forKey: .help)
+        value = try container.decodeIfPresent(String.self, forKey: .value)
         position = try container.decodeIfPresent(Point.self, forKey: .position)
         size = try container.decodeIfPresent(Size.self, forKey: .size)
         state = try container.decodeIfPresent(AXElementState.self, forKey: .state)
         children = try container.decodeIfPresent([AXElement].self, forKey: .children)
-        axElementRef = nil
+
+        // Decode id: try new format first, then fall back to stableID key (migration), then generate
+        if let decodedID = try container.decodeIfPresent(String.self, forKey: .id) {
+            // If the decoded ID is 4 characters (legacy format), regenerate stable ID
+            if decodedID.count == 4 {
+                id = Self.generateStableID(
+                    role: systemRole.rawValue,
+                    identifier: identifier,
+                    description: description,
+                    roleDescription: roleDescription,
+                    help: help,
+                    position: position,
+                    size: size
+                )
+            } else {
+                id = decodedID
+            }
+        } else {
+            id = Self.generateStableID(
+                role: systemRole.rawValue,
+                identifier: identifier,
+                description: description,
+                roleDescription: roleDescription,
+                help: help,
+                position: position,
+                size: size
+            )
+        }
     }
-    
+
     internal init(
         systemRole: SystemRole,
         description: String?,
         identifier: String?,
         roleDescription: String?,
         help: String?,
+        value: String? = nil,
         position: Point?,
         size: Size?,
         selected: Bool,
         enabled: Bool,
         focused: Bool,
-        children: [AXElement]? = nil,
-        axElementRef: AXUIElement? = nil
+        children: [AXElement]? = nil
     ) {
         self.systemRole = systemRole
         self.description = description
         self.identifier = identifier
         self.roleDescription = roleDescription
         self.help = help
+        self.value = value
         self.position = position
         self.size = size
         self.children = children
-        
+
         // Only include non-default state values
         let state = AXElementState.create(
             selected: selected,
@@ -109,81 +146,85 @@ public struct AXElement: Codable, @unchecked Sendable {
             focused: focused
         )
         self.state = state
-        
-        self.axElementRef = axElementRef
-        
-        // Generate consistent ID based on element properties
-        self.id = Self.generateID(
+
+        // Generate stable 12-character ID
+        self.id = Self.generateStableID(
             role: systemRole.rawValue,
             identifier: identifier,
+            description: description,
+            roleDescription: roleDescription,
+            help: help,
             position: position,
             size: size
         )
     }
-    
-    /// Generates a consistent 4-character alphanumeric ID based on element properties
-    private static func generateID(role: String?, identifier: String?, position: Point?, size: Size?) -> String {
-        // Create a string representation of the key properties
+
+    /// Generates a stable 12-character alphanumeric ID based on element properties.
+    /// Internal access for AXDumper.elementRef() to match IDs during live traversal.
+    internal static func stableID(
+        role: String?,
+        identifier: String?,
+        description: String?,
+        roleDescription: String?,
+        help: String?,
+        position: Point?,
+        size: Size?
+    ) -> String {
+        generateStableID(
+            role: role,
+            identifier: identifier,
+            description: description,
+            roleDescription: roleDescription,
+            help: help,
+            position: position,
+            size: size
+        )
+    }
+
+    private static func generateStableID(
+        role: String?,
+        identifier: String?,
+        description: String?,
+        roleDescription: String?,
+        help: String?,
+        position: Point?,
+        size: Size?
+    ) -> String {
         var hashInput = ""
         if let role = role {
-            hashInput += role
+            hashInput += "r:\(role)|"
         }
         if let identifier = identifier {
-            hashInput += identifier
+            hashInput += "i:\(identifier)|"
+        }
+        if let description = description {
+            hashInput += "d:\(description)|"
+        }
+        if let roleDescription = roleDescription {
+            hashInput += "rd:\(roleDescription)|"
+        }
+        if let help = help {
+            hashInput += "h:\(help)|"
         }
         if let position = position {
-            hashInput += "\(position.x),\(position.y)"
+            hashInput += "p:\(position.x),\(position.y)|"
         }
         if let size = size {
-            hashInput += "\(size.width),\(size.height)"
+            hashInput += "s:\(size.width),\(size.height)|"
         }
-        
-        // Generate SHA256 hash using CryptoKit
-        let data = hashInput.data(using: .utf8)!
+
+        let data = hashInput.data(using: .utf8) ?? Data()
         let hash = SHA256.hash(data: data)
-        
-        // Convert hash bytes to alphanumeric string
+
         let alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-        var id = ""
-        
-        // Take first 4 bytes and map to alphanumeric characters
         let hashBytes = Array(hash)
-        for i in 0..<4 {
+        var id = ""
+        for i in 0..<12 {
             let index = Int(hashBytes[i]) % alphanumeric.count
             let charIndex = alphanumeric.index(alphanumeric.startIndex, offsetBy: index)
             id.append(alphanumeric[charIndex])
         }
-        
         return id
-    }
-    
-    // MARK: - Value Operations
-    
-    /// Get the current value of this element
-    public func getValue() -> String? {
-        guard let axElement = axElementRef else { return nil }
-        
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(axElement, kAXValueAttribute as CFString, &value)
-        
-        guard result == .success, let stringValue = value as? String else {
-            return nil
-        }
-        
-        return stringValue
-    }
-    
-    /// Set the value of this element
-    public func setValue(_ newValue: String) throws {
-        guard let axElement = axElementRef else {
-            throw AXElementError.noElementReference
-        }
-        
-        let result = AXUIElementSetAttributeValue(axElement, kAXValueAttribute as CFString, newValue as CFString)
-        
-        guard result == .success else {
-            throw AXElementError.setValueFailed(result)
-        }
     }
 }
 
@@ -192,13 +233,19 @@ public struct AXElement: Codable, @unchecked Sendable {
 public enum AXElementError: Error, LocalizedError {
     case noElementReference
     case setValueFailed(AXError)
-    
+    case getValueFailed(AXError)
+    case actionFailed(String, AXError)
+
     public var errorDescription: String? {
         switch self {
         case .noElementReference:
             return "No accessibility element reference available for this element"
         case .setValueFailed(let axError):
             return "Failed to set value: \(axError.description)"
+        case .getValueFailed(let axError):
+            return "Failed to get value: \(axError.description)"
+        case .actionFailed(let action, let axError):
+            return "Failed to perform action '\(action)': \(axError.description)"
         }
     }
 }
@@ -249,7 +296,7 @@ public struct AXElementState: Codable, Sendable {
     public let selected: Bool?
     public let enabled: Bool?
     public let focused: Bool?
-    
+
     /// Create state with only non-default values
     public static func create(selected: Bool, enabled: Bool, focused: Bool) -> AXElementState? {
         // Only include non-default values

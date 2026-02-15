@@ -31,8 +31,8 @@ import Foundation
     )
     
     // Verify IDs are generated consistently
-    #expect(element1.id.count == 4)
-    #expect(element2.id.count == 4)
+    #expect(element1.id.count == 12)
+    #expect(element2.id.count == 12)
     #expect(element1.id != element2.id) // Different elements should have different IDs
     
     // Test that same properties generate same ID

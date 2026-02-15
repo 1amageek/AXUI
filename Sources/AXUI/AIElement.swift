@@ -2,7 +2,7 @@ import Foundation
 
 /// AI-optimized representation of an accessibility element
 internal struct AIElement: Codable, Sendable {
-    /// Unique 4-character identifier
+    /// Unique identifier
     public let id: String
     
     /// Element type without "AX" prefix (e.g., "Button", "StaticText", "Window")
